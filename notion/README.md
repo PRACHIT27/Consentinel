@@ -1,10 +1,15 @@
-# Notion board
+# Notion boards
 
-**`stories.csv`** is the board — 47 stories across 10 epics, each written to be understood without
-this conversation. Import it, switch to Board view, done.
+Two databases, related to each other.
 
-`tasks.csv` is the finer-grained engineering breakdown (50 tickets). Optional — use it only if you
-want sub-task tracking under the stories. The `Tasks` column on each story already links them.
+| File | Becomes | Rows |
+|---|---|---|
+| `stories.csv` | **Stories** — outcomes, written for humans | 61 across 12 epics |
+| `tasks.csv` | **Tasks** — the work units engineers actually pick up | 38, WU-00 to WU-37 |
+
+A story says *what should be true when we're done*. A task says *what someone builds this
+afternoon*. Several stories usually share one task, which is why they are related rather than
+duplicated.
 
 **Target page:**
 https://app.notion.com/p/3d4c336f6ea080269f6be3522dc991e9?v=3d4c336f6ea0809c8289000c51426a40
@@ -13,76 +18,81 @@ https://app.notion.com/p/3d4c336f6ea080269f6be3522dc991e9?v=3d4c336f6ea0809c8289
 
 ## 1. Import
 
-On the page: `/` → **Import** → **CSV** → `stories.csv`. Notion creates a table.
+On the page: `/` → **Import** → **CSV**. Do **`tasks.csv` first**, then `stories.csv` — the stories
+reference work-unit IDs, so having tasks in place makes the relation easy to wire.
 
-## 2. Make it a Kanban board
+## 2. Make each one a Kanban board
 
 **View → Board → Group by: Status**
 
-That is the whole trick — a Notion database *is* a Kanban board. Table and Board are two views of
-the same data, so there is nothing to rebuild. The table you saw before was just the default view.
+A Notion database *is* a Kanban board; table and board are two views of the same data. Nothing to
+rebuild.
 
 ## 3. Fix the property types
 
-CSV imports everything as plain text. Change these four and the board works properly:
+CSV imports everything as plain text. On **both** databases:
 
 | Column | Change to | Values |
 |---|---|---|
 | **Status** | Status | **Ready · In Progress · Done** |
 | **Assignee** | Person | Prachit · Vedant · Swara |
-| **Epic** | Select | the 10 epics, already numbered so they sort correctly |
+| **Epic** | Select | numbered so they sort correctly |
 | **Priority** | Select | P0 · P1 · P2 |
 | **Estimate** | Number | hours |
 
-Everything starts in **Ready**. Optionally add a **Blocked** column — a few stories depend on
-others, and it is useful to see them parked rather than buried in Ready.
+Then on **Tasks**: `Depends On` → Relation to Tasks itself, `Stories` → Relation to Stories.
+On **Stories**: `Tasks` → Relation to Tasks.
+
+Relations can't come through a CSV, but the IDs are already in the cells — so it's copy-and-click,
+not retyping.
 
 ## 4. Card display
 
-On the board view, **Properties** → show `Assignee`, `Priority` and `Epic` on the card face. Keep
-`Description` and `Acceptance` hidden — they are long, and they are what you read when you open the
-card.
+Show `Assignee`, `Priority` and `Epic` on the card face. Keep `Description`, `Acceptance` and
+`Prompt` hidden — they are what you read when you open the card.
 
 ## 5. Views worth having
 
-- **Board by Status** — the daily driver
-- **Board by Assignee** — who is overloaded
-- **Board by Epic** — progress per area
-- **Table filtered to P0** — what actually has to ship
+- **Tasks — Board by Status** — the daily driver
+- **Tasks — Board by Assignee** — who is overloaded
+- **Tasks — Table filtered to Blocked** — check this every morning
+- **Stories — Board by Epic** — progress by area, for the writeup
 
 ---
 
-## What's in each card
-
-| Field | What it holds |
-|---|---|
-| Story | Written as an outcome, not a task — "Never create a duplicate finding" |
-| Description | Two to four sentences: what it is, and *why it matters*. The reasoning is included on purpose, so nobody has to reconstruct it |
-| Acceptance | The one concrete condition that means it is finished |
-| Tasks | The `T-xx` ticket IDs in `BUILD_PROMPTS.md`, for anyone wanting implementation detail |
-| Epic · Assignee · Priority · Estimate | Board metadata |
-
 ## Shape of the work
 
-| | |
-|---|---|
-| Epics | 10 (3–6 stories each) |
-| Stories | 47 |
-| P0 / P1 / P2 | 31 / 14 / 2 |
-| Estimated | 64 hours total |
-| Vedant / Prachit / Swara | 24 / 19 / 4 stories |
+| | Stories | Tasks |
+|---|---|---|
+| Rows | 61 | 38 |
+| Estimated | 87h | 85.5h |
+| Prachit | 24 | 13 |
+| Vedant | 33 | 23 |
+| Swara | 4 | 2 |
+| P0 / P1 / P2 | 38 / 21 / 2 | 24 / 11 / 2 |
 
-64 hours across three people over two days is tight but survivable — **provided the two P2s stay
-cut** and nobody gold-plates. Swara's four look light because hers are the largest single items
-(fixtures, video, writeup) and because PM overhead is not ticketed.
+Swara's counts look light because hers are the largest single items — fixtures, video, writeup — and
+PM overhead is not ticketed.
+
+**WU-00, the agent harness, blocks every other task.** It is the only thing that should be in
+progress at the very start.
+
+## The `Prompt` column
+
+Each task carries `BUILD_PROMPTS.md WU-xx`. That is the paste-ready prompt for a Claude Code
+session: which docs to read, which file to write, the rules that bite on that piece, and its
+acceptance condition.
+
+**The prompt text is deliberately NOT copied into Notion.** Claude sessions read the repo and cannot
+see Notion, so duplicating it would guarantee the two drift apart. Notion tells you *what*; the repo
+tells Claude *how*.
 
 ## Keeping it in sync
 
-`BUILD_PROMPTS.md` and this folder are **canonical**. Claude Code sessions read repository files and cannot
-see Notion, so if the two ever disagree, the repo wins.
+The repo is **canonical**. If Notion and `BUILD_PROMPTS.md` disagree, the repo wins.
 
-Swara's job is the sync in the other direction: twice daily, copy status changes from the Notion
-board into the **Status** section of `CLAUDE.md`. Without that, two Claude sessions will happily
-rebuild work that is already finished.
+Swara's job is the sync in the other direction: twice daily, copy status changes from the boards
+into the **Status** section of `CLAUDE.md`. Without that, two Claude sessions will happily rebuild
+work that is already finished.
 
-If `stories.csv` is regenerated later, re-import into a fresh database rather than trying to merge.
+If either CSV is regenerated, re-import into a **fresh** database rather than trying to merge.

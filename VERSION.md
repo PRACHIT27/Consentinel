@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.3.1`**
+**Doc set version: `v1.3.2`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,25 @@ commit.
 # Log
 
 Newest first.
+
+## v1.3.2 - 2026-09-07 - Prachit (with Claude)
+**Files:** `notion/tasks.csv`, `notion/README.md`
+**Type:** PATCH
+
+Notion now has two related databases instead of one. A story says what should be true when we are
+done; a task says what someone builds this afternoon. Several stories usually share one task, so
+they are related rather than duplicated.
+
+- `notion/tasks.csv` regenerated from the work units: 38 rows, WU-00 to WU-37, each with assignee,
+  priority, estimate, dependencies, the stories it delivers, a description, an acceptance condition
+  and a pointer to its prompt. The old file still used the dead T-xx ids and SQLite
+- Every work unit links to at least one story, and every story links to a work unit
+- The prompt TEXT is deliberately not copied into Notion. Claude sessions read the repo and cannot
+  see Notion, so duplicating it would guarantee drift. Notion says what; the repo says how
+
+**Action required:**
+- Swara: import `tasks.csv` FIRST, then `stories.csv`, then wire the relations. Re-import into fresh
+  databases rather than merging
 
 ## v1.3.1 - 2026-09-07 - Prachit (with Claude)
 **Files:** `BUILD_PROMPTS.md`, `notion/stories.csv`
