@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.2.0`**
+**Doc set version: `v1.2.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,17 @@ commit.
 # Log
 
 Newest first.
+
+## v1.2.1 - 2026-09-07 - Prachit (with Claude)
+**Files:** `ARCHITECTURE.md`
+**Type:** PATCH
+
+- Added section 10, **Component reference** - every agent with its ADK type, tools, model and
+  runtime, plus the tool table, Model Armor settings per path, the data and cache stores with their
+  rules, the harness sequence, and the observability signals. The diagrams show flow; this table
+  carries the technical detail, and it is authoritative if the two ever disagree.
+- Four agents carry no model; three components carry no tools. Both are stated explicitly so nobody
+  "fixes" them later.
 
 ## v1.2.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** all governed files

@@ -441,3 +441,81 @@ Each agent declares a `HarnessPolicy` carrying its timeout, retry budget, output
 regime, Model Armor templates and **`tools` tuple**. That tuple is not documentation — the harness
 refuses any tool call not named in it, which is how the trust boundary is enforced in code rather
 than by convention. Triage declares `tools=()`.
+
+---
+
+## 10. Component reference
+
+Every component with its ADK type, capability, model and runtime. This is the technical companion
+to the diagrams above — if a diagram and this table disagree, this table is authoritative.
+
+### Agents
+
+| Agent | ADK type | Tools | Model | Runtime |
+|---|---|---|---|---|
+| QueryPlanner | `LlmAgent` | none | Gemini, temp 0, schema out | cn-enforcement |
+| TextSweep | `LlmAgent` | `parallel_search` | Gemini | cn-enforcement |
+| AudioSweep · P1 | `LlmAgent` | `parallel_search`, `fetch_media` | Gemini | cn-enforcement |
+| VideoSweep · P1 | `LlmAgent` | `parallel_search`, `fetch_media` | Gemini | cn-enforcement |
+| ImageSweep · P2 | `LlmAgent` | `vision_web_detection` | Gemini | cn-enforcement |
+| **Triage** | `LlmAgent` | **`()`** | Gemini, forced fn calling | **cn-triage** |
+| **MediaTriage** · P1 | `LlmAgent` | **`()`** | Gemini multimodal | **cn-triage** |
+| **Reconciler** | custom `BaseAgent` | registry read | **none** | cn-enforcement |
+| Dossier | `LlmAgent` | evidence read/write, **no send** | Gemini | cn-enforcement |
+| AssetIngest | custom `BaseAgent` | storage read | **none** | cn-clearance |
+| Paperwork | `LlmAgent` | none | Gemini | cn-clearance |
+| Inspector | `LlmAgent` | none | Gemini multimodal | cn-clearance |
+| Manifest | custom `BaseAgent` | registry read | **none** | cn-clearance |
+| ConsentIngest | `LlmAgent` | none | Gemini | cn-ingest |
+
+Four agents carry no model. Three components carry no tools. Both facts are the design.
+
+### Composition
+
+`SequentialAgent` enforcement · `ParallelAgent` discovery (four branches) · `LoopAgent` triage per
+candidate · `SequentialAgent` clearance. Composition is in-process within each runtime; session
+state carries the sweep.
+
+### Tools
+
+| Tool | Notes |
+|---|---|
+| `parallel_search` | official `parallel-web` SDK. `objective` + 2–3 queries of 3–6 words, `location` = ISO alpha-2, `mode=basic`, `session_id` = sweep id |
+| `parallel_extract` · P1 | excerpts only, never evidence |
+| `fetch_page` | SSRF guards, redirect re-validation, size cap, no cookies or credentials |
+| `fetch_media` · P1 | same guards; writes content-addressed to `derived/` |
+| `vision_web_detection` · P2 | reverse-image discovery |
+
+### Model Armor
+
+| Path | Call | Action |
+|---|---|---|
+| page and media → triage | `SanitizeUserPrompt` | inspect only, low and above |
+| contract, paperwork → ingest | `SanitizeUserPrompt` | inspect only, medium and above |
+| dossier draft → out | `SanitizeModelResponse` | **inspect and block**, medium and above |
+
+### Data and cache
+
+| Store | Contents | Rule |
+|---|---|---|
+| Firestore | performers, consents, findings, assets, dossiers, audit_log | findings doc id = `url_hash`; audit_log append-only |
+| Firestore `cache` | search results, extractions, plans | native TTL policy; key includes `locale` + `prompt_version` |
+| GCS `derived/` | page text, media proxies, transcripts | content-addressed by sha256, no TTL |
+| GCS `evidence/` | snapshots and screenshots | retention lock; **no principal holds objectAdmin** |
+| GCS `uploads/` | contracts, submitted deliverables | user-deletable |
+| Secret Manager | Parallel API key | enforcement SA only |
+
+### Harness — applied to every agent
+
+`1 span → 2 budget → 3 cache → 4 armor in → 5 invoke → 6 armor out → 7 validate → 8 repair ×1 →
+9 retry and breaker → 10 FAIL SAFE → 11 audit → 12 metrics`
+
+`HarnessPolicy.tools` is the capability boundary, enforced in code. Step 10 resolves to
+`ambiguous` / `unverified` / `degraded` and never to `authorized` or `cleared`.
+
+### Observability
+
+Cloud Trace span per agent, tool and candidate · Cloud Logging structured JSON, never page content ·
+metrics including `verdicts.total`, `verdicts.ambiguous_ratio`, `extraction.validation_failures`,
+`model_armor.detections` · `adk eval` with `adversarial_injection` first.
+
