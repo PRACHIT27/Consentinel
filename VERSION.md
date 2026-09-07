@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.3.0`**
+**Doc set version: `v1.3.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,25 @@ commit.
 # Log
 
 Newest first.
+
+## v1.3.1 - 2026-09-07 - Prachit (with Claude)
+**Files:** `BUILD_PROMPTS.md`, `notion/stories.csv`
+**Type:** PATCH - fixes drift introduced by the consolidation
+
+Folding TASKS.md into BUILD_PROMPTS.md left the Tasks column in stories.csv pointing at T-xx ticket
+ids that no longer existed, and the ticket index misnamed WU-12 as ImageSweep when it is the
+reconciler. Fixed both, and added the six work units that had a story but no prompt.
+
+- All T-xx references in `notion/stories.csv` remapped to WU-xx. Zero stale references remain
+- **New work units:** WU-32 ImageSweep, WU-33 scheduled sweeps, WU-34 IAM and service accounts,
+  WU-35 demo fixtures, WU-36 video and submission, WU-37 runtime evidence pack
+- Ticket index rebuilt from WU-00 to WU-37 with owner and priority, plus the corrected cut order
+
+Ownership: Prachit 13 work units, Vedant 25, Swara 2.
+
+**Action required:**
+- Swara: re-import `notion/stories.csv` again - the Tasks column changed
+- Everyone: work units are WU-xx now. If a Claude session cites a T-xx id it is on a stale checkout
 
 ## v1.3.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** `notion/stories.csv`

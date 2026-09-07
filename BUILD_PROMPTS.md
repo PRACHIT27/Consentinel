@@ -901,20 +901,54 @@ both run in CI on every commit.
 
 ---
 
+---
+
 # Ticket index
 
-The per-work-unit prompts above ARE the ticket list — there is no separate
-backlog file. Notion mirrors this for the humans (`notion/stories.csv`, 47
-stories across 10 epics); this file is what the Claude sessions read. If the two
-disagree, this repo wins.
+These prompts ARE the ticket list — there is no separate backlog file. Notion mirrors it for the
+humans (`notion/stories.csv`, 61 stories); this file is what the Claude sessions read. If the two
+disagree, the repo wins.
 
-| Priority | Work units |
-|---|---|
-| **Blocks everything** | WU-00 harness |
-| **P0** | WU-01, WU-02, WU-05, WU-06, WU-07, WU-08, WU-09, WU-10, WU-12, WU-13, WU-14, WU-19, WU-20, WU-21, WU-22, WU-24, WU-25, WU-31 (adversarial only) |
-| **P1** | WU-03, WU-15, WU-16, WU-17, WU-18, WU-23, WU-26, WU-27, WU-28, WU-29, WU-30 |
-| **P2 — cut first** | WU-12 ImageSweep, scheduler |
+| WU | What | Owner | Pri |
+|---|---|---|---|
+| **WU-00** | **Agent harness — blocks everything** | **Prachit** | **P0** |
+| WU-01 | Firestore store | Prachit | P0 |
+| WU-02 | Seed loader | Prachit | P0 |
+| WU-03 | Consent ingestion | Prachit | P1 |
+| WU-04 | Parallel API research | Vedant | ✅ done |
+| WU-05 | `parallel_search` tool | Vedant | P0 |
+| WU-06 | QueryPlanner | Vedant | P0 |
+| WU-07 | TextSweep + dedupe | Vedant | P0 |
+| WU-08 | `fetch_page` + SSRF guards | Vedant | P0 |
+| WU-09 | Triage extractor | Vedant | P0 |
+| WU-10 | Extraction validators | Vedant | P0 |
+| WU-11 | Injection badge (Model Armor surfaces it) | Vedant | P1 |
+| WU-12 | Reconciler rule engine | Vedant | P0 |
+| WU-13 | Rule engine tests | Vedant | P0 |
+| WU-14 | Retry, backoff, circuit breaker | Vedant | P0 |
+| WU-15 | Evidence store and snapshots | both | P1 |
+| WU-16 | Dossier writer | Vedant | P1 |
+| WU-17 | Clearance pipeline | Prachit | P1 |
+| WU-18 | Audit helper | Prachit | P0 |
+| WU-19 | Cache — Firestore TTL + GCS | Prachit | P0 |
+| WU-20 | `DEMO_MODE` | Vedant | P0 |
+| WU-21 | App shell | Prachit | P0 |
+| WU-22 | Registry and findings views | Prachit | P0 |
+| WU-23 | Decision trail, case file, clearance board | Prachit | P1 |
+| WU-24 | Four Agent Runtime deployments | Vedant | P0 |
+| WU-25 | Cloud Run and Secret Manager | Prachit | P0 |
+| WU-26 | AudioSweep | Vedant | P1 |
+| WU-27 | VideoSweep | Vedant | P1 |
+| WU-28 | `fetch_media` | Vedant | P1 |
+| WU-29 | MediaTriage + Model Armor | Vedant | P1 |
+| WU-30 | Observability | Prachit | P1 |
+| WU-31 | Evalsets | Vedant | P0 (adversarial only) |
+| WU-32 | ImageSweep | Vedant | **P2** |
+| WU-33 | Scheduled sweeps | Vedant | **P2** |
+| WU-34 | IAM and service accounts | Prachit | P0 |
+| WU-35 | Demo fixtures | Swara | P0 |
+| WU-36 | Video, writeup, submission | Swara | P0 |
+| WU-37 | Runtime evidence pack | Vedant | P0 |
 
-Cut order if Monday evening is behind: ImageSweep, scheduler, the two soft
-evalsets, the metrics dashboard. **Never** cut adversarial_injection, the four
-runtime deployments, or the video.
+**Cut order if Monday evening is behind:** WU-32 → WU-33 → WU-27 → the two soft evalsets in WU-31 →
+the dashboard half of WU-30. **Never** cut the adversarial evalset, WU-24, WU-34 or WU-36.
