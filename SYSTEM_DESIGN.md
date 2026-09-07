@@ -53,8 +53,11 @@ credential theft — which is why Triage, and only Triage, gets its own.
 |---|---|---|---|---|---|
 | 1 | QueryPlanner | `LlmAgent` | none | Gemini | enforcement |
 | 2 | TextSweep | `LlmAgent` | `parallel_search` | Gemini | enforcement |
-| 3 | ImageSweep | `LlmAgent` | `vision_web_detection` | Gemini · P2 | enforcement |
-| 4 | **Triage** | `LlmAgent` | **none** | Gemini + Model Armor | **triage** |
+| 3 | **AudioSweep** | `LlmAgent` | `parallel_search`, `fetch_media` | Gemini · P1 | enforcement |
+| 4 | **VideoSweep** | `LlmAgent` | `parallel_search`, `fetch_media` | Gemini · P1 | enforcement |
+| 5 | ImageSweep | `LlmAgent` | `vision_web_detection` | Gemini · P2 | enforcement |
+| 6 | **Triage** | `LlmAgent` | **none** | Gemini + Model Armor | **triage** |
+| 7 | **MediaTriage** | `LlmAgent` | **none** | Gemini multimodal + Model Armor | **triage** |
 | 5 | **Reconciler** | custom `BaseAgent` | registry read | **no model** | enforcement |
 | 6 | Dossier | `LlmAgent` | evidence read/write | Gemini + Model Armor | enforcement |
 | 7 | AssetIngest | custom `BaseAgent` | storage read | **no model** | clearance |
@@ -64,7 +67,34 @@ credential theft — which is why Triage, and only Triage, gets its own.
 | 11 | ConsentIngest | `LlmAgent` | none | Gemini | ingest |
 
 Composition — `SequentialAgent`, `ParallelAgent`, `LoopAgent` — wraps these and is not separately
-deployed.
+deployed. Numbering continues 8–14 for Reconciler, Dossier, AssetIngest, Paperwork, Inspector,
+Manifest, ConsentIngest as listed above.
+
+### 2.2 Discovery is four branches, and the split matters
+
+`DiscoveryAgent` is a `ParallelAgent` fanning out to **TextSweep, AudioSweep, VideoSweep and
+ImageSweep**. Audio and video are not decoration — voice cloning is sold as *audio samples on
+marketplaces*, and synthetic endorsements run as *video ads*. Text search alone finds the listing
+page but never confirms the offering is real.
+
+**The sweeps only discover and download. They never analyse.** Each returns candidate URLs plus, via
+`fetch_media`, a GCS URI for any sample it pulled. Analysis of that media happens in `MediaTriage`,
+inside `cn-triage`, which has `tools=()`. That keeps the rule intact: *every component that reads
+untrusted content holds no capability.* Downloaded media is untrusted in exactly the way a page is.
+
+New tool `fetch_media(url, max_bytes) -> MediaRef` carries the same SSRF guards as `fetch_page`,
+writes to the `derived/` bucket, and returns `uri`, `sha256` and `mime`.
+
+**Honest limit — state this on camera.** Gemini can transcribe audio, describe a voice, and describe
+what a video shows. It **cannot** perform speaker verification: it cannot prove a voiceprint belongs
+to a specific person. So audio and video sweeps produce *corroborating evidence* — a working sample
+exists, its content matches the seller's claim — which raises `confidence`. They are not identity
+proof, and the verdict still rests on the commercial claim plus the registry. Same discipline as
+NG-1: we do not claim detection we cannot deliver.
+
+What this buys beyond coverage: it puts the hackathon's **Video Transcription**, **Video Captioning**
+and **multimodal** resources to genuine work (see `RESOURCE_MAP.md`), and it gives the demo something
+audible.
 
 Three agents have **no model at all**. That is deliberate: the verdict, the manifest and asset
 ingestion are decisions, and decisions are code.
@@ -140,6 +170,38 @@ class HarnessPolicy:
 `tools` is not documentation. **It is the capability boundary** — the harness refuses any tool call
 not named in the policy, so the trust boundary is enforced in code rather than by convention. Triage
 declares `tools=()`.
+
+---
+
+# 4.2 Caching — which tool
+
+**No Redis, no Memorystore.** It needs a VPC connector, costs money by the hour, and our hit volume
+does not come close to justifying either. Two stores we already have do the whole job.
+
+| Tier | Store | Keyed by | Expiry |
+|---|---|---|---|
+| Small structured entries — search results, extractions, triage output, plan output | **Firestore `cache` collection** | key hash as the document id | **Firestore native TTL policy** on an `expires_at` field; Firestore deletes them for us |
+| Large blobs — page text, PDF text, media proxies, transcripts, snapshots | **GCS `derived/` bucket**, content-addressed by `sha256` | object name = hash | none needed for content-addressed entries; **Object Lifecycle** rules for anything TTL-based |
+
+Split at roughly **100 KB**. Firestore's document ceiling is 1 MiB, so anything approaching it goes
+to GCS regardless.
+
+Why this is the right answer here, not a compromise:
+
+- Both stores are already provisioned, already in our IAM model, already backed up
+- Both are **shared across Cloud Run instances** — an in-process LRU would be useless, since the
+  next request lands on a different container
+- Firestore TTL is a policy, not a cron job we have to write and monitor
+- Content-addressed GCS entries never expire, which is exactly right: a hash of an immutable file
+  cannot go stale (TECHNICAL_DESIGN §6.1)
+- `DEMO_MODE` reads the same stores, so a warm cache **survives redeploys** — the video shoot does
+  not depend on a container staying alive
+
+One free layer on top: Parallel's Search API exposes its own `fetch_policy` (cached versus live
+content). Use it — it is a cache tier we get without owning.
+
+Local development uses the Firestore emulator against identical code paths. No second
+implementation, no drift between dev and deploy.
 
 ---
 

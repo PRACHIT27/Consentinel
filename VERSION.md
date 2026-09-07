@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.0.0`**
+**Doc set version: `v1.1.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -108,6 +108,34 @@ commit.
 # Log
 
 Newest first.
+
+## v1.1.0 - 2026-09-07 - Prachit (with Claude)
+**Files:** `SYSTEM_DESIGN.md`
+**Type:** MINOR
+
+- **Discovery gains AudioSweep and VideoSweep** (both P1), making `DiscoveryAgent` a four-branch
+  `ParallelAgent`. Voice cloning is sold as audio samples on marketplaces and synthetic
+  endorsements run as video ads - text search finds the listing page but never confirms the
+  offering is real.
+- **The sweeps discover and download only; they never analyse.** A new `MediaTriage` agent inside
+  `cn-triage` does the analysis with `tools=()`. The rule holds: every component reading untrusted
+  content holds no capability. Downloaded media is untrusted exactly as a page is.
+- New tool `fetch_media(url, max_bytes) -> MediaRef` - same SSRF guards as `fetch_page`, writes to
+  the `derived/` bucket, returns uri, sha256 and mime.
+- **Stated limit:** Gemini can transcribe and describe audio and video but cannot do speaker
+  verification. Audio and video sweeps yield corroborating evidence that raises confidence, not
+  identity proof. Say this on camera; it is the same discipline as NG-1.
+- **Caching decided: no Redis or Memorystore.** Firestore `cache` collection with a native TTL
+  policy for small structured entries; GCS `derived/` content-addressed by sha256 for large blobs;
+  split at ~100 KB. Both are already provisioned, already in the IAM model, and shared across Cloud
+  Run instances - an in-process LRU would be useless when the next request lands on a different
+  container. `DEMO_MODE` warm cache now survives redeploys.
+- Agent count 11 -> 14.
+
+**Action required:**
+- Vedant: AudioSweep and VideoSweep are P1, behind the P0 sweep path. ImageSweep drops to P2 below
+  them - a voice-clone listing matters more than a caption-less image
+- Prachit: cache work (WU-19) now targets Firestore TTL and GCS, not a local store
 
 ## v1.0.0 — 2026-09-07 — Prachit (with Claude) — 🔒 ARCHITECTURE FROZEN
 **Files:** `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `ARCHITECTURE.md`,
