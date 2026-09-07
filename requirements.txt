@@ -1,0 +1,32 @@
+# Agents + Gemini
+# Exact install line published on the hackathon resources page (Phase 4):
+google-cloud-aiplatform[agent_engines,adk]>=1.101.0
+google-genai
+
+# Parallel — judged partner integration.
+# The rules name the official SDK explicitly: the integration "must be present in
+# your code", not just the README. Use this client, not raw HTTP.
+parallel-web
+
+# Google Cloud services
+google-cloud-vision            # reverse-image (web detection) discovery
+google-cloud-storage           # immutable evidence snapshots
+google-cloud-secret-manager    # secrets in deploy (resources page, Phase 5)
+
+# Web app (hosted URL for the submission)
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+
+# Plumbing
+httpx
+python-dotenv
+pydantic
+
+# Contract PDF ingestion
+pypdf
+
+# Dev
+pytest
+ruff

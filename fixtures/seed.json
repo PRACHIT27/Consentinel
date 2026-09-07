@@ -1,0 +1,166 @@
+{
+  "_comment": "Demo seed data. The performer and licensee are fictional on purpose: the repo and demo video are public, so we must not publish authorization verdicts about real people. Findings below are illustrative shapes, not real URLs.",
+
+  "performers": [
+    {
+      "id": "perf_mira_vance",
+      "name": "Mira Vance",
+      "aliases": ["M. Vance"],
+      "reference_images": ["fixtures/media/mira_ref_01.jpg"],
+      "notes": "Fictional performer used for demo. Represented by the Ardent Talent Group (also fictional).",
+      "created_at": "2026-09-07T00:00:00Z"
+    }
+  ],
+
+  "consents": [
+    {
+      "id": "cons_halcyon_2026",
+      "performer_id": "perf_mira_vance",
+      "licensee": "Halcyon Pictures",
+      "source_doc_ref": "fixtures/docs/mira_vance_halcyon_agreement.pdf",
+      "permitted_uses": ["voice_synth", "archival_reuse"],
+      "territories": ["US", "CA"],
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_to": "2028-12-31T00:00:00Z",
+      "compensation_trigger": "Per-title fee on any synthetic voice line retained in final delivery.",
+      "clause_citations": [
+        {
+          "quote": "Producer may generate synthetic voice performances of the Artist solely for the Picture, in the United States and Canada.",
+          "page": 4
+        },
+        {
+          "quote": "No right is granted to generate or exploit a synthetic visual likeness of the Artist.",
+          "page": 5
+        }
+      ],
+      "created_at": "2026-09-07T00:00:00Z"
+    }
+  ],
+
+  "findings": [
+    {
+      "id": "find_0001",
+      "performer_id": "perf_mira_vance",
+      "url": "https://example-marketplace.invalid/listing/mira-vance-voice",
+      "url_hash": "f1a0c0de0001",
+      "discovered_via": "text",
+      "discovered_locale": "en-US",
+      "target_territories": ["US"],
+      "modality": "voice",
+      "is_commercial": true,
+      "evidence_quote": "Instant AI voice model of Mira Vance - unlimited commercial use, $19/mo.",
+      "confidence": 0.91,
+      "verdict": "unauthorized",
+      "matched_consent_id": null,
+      "reasoning": "Commercial synthetic voice offering by a third party. No consent grants voice_synth rights to any licensee other than Halcyon Pictures.",
+      "status": "new",
+      "first_seen": "2026-09-07T10:00:00Z",
+      "last_checked": "2026-09-07T10:00:00Z"
+    },
+    {
+      "id": "find_0002",
+      "performer_id": "perf_mira_vance",
+      "url": "https://example-studio.invalid/press/halcyon-adr-notes",
+      "url_hash": "f1a0c0de0002",
+      "discovered_via": "text",
+      "discovered_locale": "en-US",
+      "target_territories": ["US", "CA"],
+      "modality": "voice",
+      "is_commercial": true,
+      "evidence_quote": "Halcyon Pictures confirmed synthetic voice pickups were used for two lines in the North American cut.",
+      "confidence": 0.84,
+      "verdict": "authorized",
+      "matched_consent_id": "cons_halcyon_2026",
+      "reasoning": "Licensee matches cons_halcyon_2026; use is voice_synth within US/CA and inside the validity window.",
+      "status": "reviewed",
+      "first_seen": "2026-09-07T10:01:00Z",
+      "last_checked": "2026-09-07T10:01:00Z"
+    },
+    {
+      "id": "find_0003",
+      "performer_id": "perf_mira_vance",
+      "url": "https://example-loja.invalid/anuncio/voz-ia-mira-vance",
+      "url_hash": "f1a0c0de0003",
+      "discovered_via": "text",
+      "discovered_locale": "pt-BR",
+      "target_territories": ["BR", "PT"],
+      "modality": "voice",
+      "is_commercial": true,
+      "evidence_quote": "Voz de IA da Mira Vance para seu comercial - entrega em 24h, pagamento em BRL.",
+      "confidence": 0.88,
+      "verdict": "unauthorized",
+      "matched_consent_id": null,
+      "reasoning": "Territory-scoped: the only voice_synth grant is limited to US/CA. Listing prices in BRL and targets Brazil, outside every granted territory. Found only on the pt-BR sweep.",
+      "status": "new",
+      "first_seen": "2026-09-07T10:02:00Z",
+      "last_checked": "2026-09-07T10:02:00Z"
+    },
+    {
+      "id": "find_0004",
+      "performer_id": "perf_mira_vance",
+      "url": "https://example-fanart.invalid/gallery/vance-poster",
+      "url_hash": "f1a0c0de0004",
+      "discovered_via": "image",
+      "discovered_locale": "en-US",
+      "target_territories": [],
+      "modality": "face",
+      "is_commercial": false,
+      "evidence_quote": null,
+      "confidence": 0.41,
+      "verdict": "ambiguous",
+      "matched_consent_id": null,
+      "reasoning": "Reverse-image hit with no textual claim of synthesis and no commercial signal. Below confidence threshold - routed to human review rather than guessed.",
+      "status": "new",
+      "first_seen": "2026-09-07T10:03:00Z",
+      "last_checked": "2026-09-07T10:03:00Z"
+    }
+  ],
+
+  "assets": [
+    {
+      "id": "asset_0412",
+      "production_id": "prod_halcyon_nightfall",
+      "shot_code": "NF_1042_ADR",
+      "filename": "NF_1042_ADR_v03.wav",
+      "vendor": "Northlight Post",
+      "invoice_ref": "NL-2291",
+      "performer_id": "perf_mira_vance",
+      "synthetic": "yes",
+      "detected_modality": "voice",
+      "clearance_state": "cleared",
+      "matched_consent_id": "cons_halcyon_2026",
+      "reasoning": "Vendor invoice declares AI voice replacement. Covered by cons_halcyon_2026 for US/CA delivery.",
+      "created_at": "2026-09-07T10:10:00Z"
+    },
+    {
+      "id": "asset_0533",
+      "production_id": "prod_halcyon_nightfall",
+      "shot_code": "NF_1188_VFX",
+      "filename": "NF_1188_VFX_v07.exr",
+      "vendor": "Cyan Alley VFX",
+      "invoice_ref": "CA-8830",
+      "performer_id": "perf_mira_vance",
+      "synthetic": "yes",
+      "detected_modality": "face",
+      "clearance_state": "blocked",
+      "matched_consent_id": null,
+      "reasoning": "Synthetic visual likeness. cons_halcyon_2026 explicitly withholds visual likeness rights (p.5). Cannot deliver.",
+      "created_at": "2026-09-07T10:11:00Z"
+    },
+    {
+      "id": "asset_0601",
+      "production_id": "prod_halcyon_nightfall",
+      "shot_code": "NF_1203",
+      "filename": "NF_1203_plate_v01.exr",
+      "vendor": "Cyan Alley VFX",
+      "invoice_ref": null,
+      "performer_id": null,
+      "synthetic": "unknown",
+      "detected_modality": null,
+      "clearance_state": "unverified",
+      "matched_consent_id": null,
+      "reasoning": "No provenance metadata and no vendor paperwork on file. Default is unverified - we prove coverage, we do not assume it.",
+      "created_at": "2026-09-07T10:12:00Z"
+    }
+  ]
+}
