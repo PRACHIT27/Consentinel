@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.1.0`**
+**Doc set version: `v1.2.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -19,18 +19,16 @@ Changes to any of these require a VERSION.md entry:
 
 | File | Why it's governed |
 |---|---|
-| `schema.sql` | Frozen contract — both halves of the build code against it |
+| `schema.sql` | Frozen contract — the logical model both halves code against |
 | `consentinel/store/base.py` | Frozen contract — interfaces and records |
 | `consentinel/tools/contracts.py` | Frozen contract — tool signatures |
 | `PRD.md` | Requirements; changes invalidate acceptance criteria |
-| `TECHNICAL_DESIGN.md` | Design decisions others are implementing against |
-| `ARCHITECTURE.md` | Swara designs Notion diagrams from this |
-| `COMPETITION.md` | Rules and submission requirements |
-| `RESOURCE_MAP.md` | Which services we use and where |
-| `TASKS.md` | Backlog; Swara mirrors into Notion |
+| `DESIGN.md` | Design decisions others are implementing against |
+| `ARCHITECTURE.md` | Swara designs from this; frozen at v1.0.0 |
+| `COMPETITION.md` | Rules, submission requirements, resource mapping |
 | `BUILD_PROMPTS.md` | Per-work-unit prompts; changing one changes what gets built |
 | `CLAUDE.md` | The hub every session loads |
-| `BUILD_SPEC.md`, `TEAM_BRIEF.md`, `README.md` | Shared understanding |
+| `README.md` | Public face; judges read it |
 
 Ordinary implementation files are **not** governed — commit them freely without touching this file.
 
@@ -109,8 +107,49 @@ commit.
 
 Newest first.
 
+## v1.2.0 - 2026-09-07 - Prachit (with Claude)
+**Files:** all governed files
+**Type:** MINOR - consolidation, no design change
+
+Thirteen root markdown files reduced to eight. The sprawl was real: the same work
+was described three separate times (a ticket list, a story list and a prompt list),
+which was guaranteed to drift apart within a day. Every extra file is also context
+a Claude session may load and another place a fact can go stale.
+
+**Merged and deleted**
+- `TECHNICAL_DESIGN.md` + `SYSTEM_DESIGN.md` -> **`DESIGN.md`** (Part I pipeline,
+  Part II runtime and operations). These were always one document; the split only
+  existed because a shell heredoc failed mid-session.
+- `RESOURCE_MAP.md` -> **`COMPETITION.md` section 12**. Both answer "what the
+  hackathon requires and offers".
+- `TASKS.md` -> **`BUILD_PROMPTS.md`**, which gains a ticket index and the cut
+  order. The work now lives in exactly two places with distinct jobs: this file
+  for whoever is building, `notion/stories.csv` for Swara's board.
+- `TEAM_BRIEF.md` and `BUILD_SPEC.md` -> **`README.md`**, rewritten to carry the
+  plain-language explanation, the real litigation framing, and an explicit
+  "what we do not claim" section.
+
+**Content brought up to date with the design discussion**
+- **WU-00, the agent harness, added as the first work unit and blocks everything
+  else.** Built once, it gives all fourteen agents their reliability, security and
+  observability; built per agent it would be inconsistent by Monday night.
+- WU-01 rewritten for **Firestore, not SQLite** - findings use `url_hash` as the
+  document id, which gives upsert idempotency for free.
+- WU-19 rewritten for the decided cache stores: Firestore native TTL for small
+  structured entries, GCS content-addressed for blobs, split at ~100 KB. No Redis.
+- New work units: WU-26 AudioSweep, WU-27 VideoSweep, WU-28 fetch_media,
+  WU-29 MediaTriage, WU-30 observability, WU-31 evalsets.
+- Cross-references across every remaining file repointed to the merged docs.
+- Team size corrected to three.
+
+**Action required:**
+- Everyone: the five deleted files are gone - if a Claude session cites one, it is
+  working from a stale checkout. `git pull`
+- Whoever starts first: **WU-00**. Nothing else should begin before it
+- Prachit: WU-01 is Firestore now, not SQLite. Re-read it before starting
+
 ## v1.1.0 - 2026-09-07 - Prachit (with Claude)
-**Files:** `SYSTEM_DESIGN.md`
+**Files:** `DESIGN.md`
 **Type:** MINOR
 
 - **Discovery gains AudioSweep and VideoSweep** (both P1), making `DiscoveryAgent` a four-branch
@@ -172,7 +211,7 @@ frozen and **Swara is unblocked for design work**.
   unchanged.
 - Sequence diagram now shows batched queries and the `location` parameter.
 
-**New: `SYSTEM_DESIGN.md`** — the runtime and operational architecture that was missing.
+**New: `DESIGN.md`** — the runtime and operational architecture that was missing.
 
 - **Firestore only; SQLite dropped entirely.** Cloud Run's filesystem is ephemeral, so a SQLite
   registry would not survive between requests. `schema.sql` is now the *logical* model, Firestore
@@ -239,20 +278,20 @@ the metrics dashboard. Never cut `adversarial_injection`, the four deployments, 
   `fetch_page`, `vision_web_detection` signatures, `TriageExtraction` schema)
 - **`PRD.md`** — FR-1…FR-8 and TS-1…TS-6 with acceptance criteria, personas, non-goals, milestones,
   open questions
-- **`TECHNICAL_DESIGN.md`** — fail-safe principle, scheduler, retry classification and circuit
+- **`DESIGN.md`** — fail-safe principle, scheduler, retry classification and circuit
   breaker, six guardrail layers, prompt-injection defence, storage zones, two cache regimes
 - **`COMPETITION.md`** — verbatim rules, accepted SDKs, the Parallel runtime requirement, submission
   checklist, judging criteria, disqualification risks
-- **`RESOURCE_MAP.md`** — every hackathon resource mapped to a component. Two decisions recorded:
+- **`COMPETITION.md §12`** — every hackathon resource mapped to a component. Two decisions recorded:
   deploy agents to Agent Engine; generate demo fixtures with Imagen 3 and TTS so no real person's
   likeness appears in the submission
 - **`ARCHITECTURE.md`** — 7 Mermaid diagrams
-- **`TASKS.md`** — 49 tickets across 10 epics, critical path, day plan, cut order
-- **`BUILD_SPEC.md`**, **`TEAM_BRIEF.md`**, **`README.md`**, **`CLAUDE.md`** hub
+- **`BUILD_PROMPTS.md`** — 49 tickets across 10 epics, critical path, day plan, cut order
+- **`README.md`**, **`README.md`**, **`README.md`**, **`CLAUDE.md`** hub
 - `requirements.txt` corrected to the published ADK install line and the official `parallel-web` SDK
 
 **Action required:**
 - Everyone: run `git config core.hooksPath .githooks` after cloning
 - Vedant: **T-07** first — it blocks the agent side *and* the architecture freeze
-- Swara: import `TASKS.md` and `ARCHITECTURE.md` into the Notion page; hold off on polished design
+- Swara: import `BUILD_PROMPTS.md` and `ARCHITECTURE.md` into the Notion page; hold off on polished design
   until v1.0.0

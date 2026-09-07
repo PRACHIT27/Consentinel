@@ -59,7 +59,7 @@ card.
 | Story | Written as an outcome, not a task — "Never create a duplicate finding" |
 | Description | Two to four sentences: what it is, and *why it matters*. The reasoning is included on purpose, so nobody has to reconstruct it |
 | Acceptance | The one concrete condition that means it is finished |
-| Tasks | The `T-xx` ticket IDs in `TASKS.md`, for anyone wanting implementation detail |
+| Tasks | The `T-xx` ticket IDs in `BUILD_PROMPTS.md`, for anyone wanting implementation detail |
 | Epic · Assignee · Priority · Estimate | Board metadata |
 
 ## Shape of the work
@@ -78,7 +78,7 @@ cut** and nobody gold-plates. Swara's four look light because hers are the large
 
 ## Keeping it in sync
 
-`TASKS.md` and this folder are **canonical**. Claude Code sessions read repository files and cannot
+`BUILD_PROMPTS.md` and this folder are **canonical**. Claude Code sessions read repository files and cannot
 see Notion, so if the two ever disagree, the repo wins.
 
 Swara's job is the sync in the other direction: twice daily, copy status changes from the Notion

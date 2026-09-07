@@ -23,12 +23,12 @@ Cloud Vision web detection · SQLite behind `Store` · FastAPI + Jinja · Agent 
 
 Our docs summarise these pages, and **the organisers can update them at any time**. When a question
 touches rules, eligibility, submission requirements or which services are sanctioned, fetch the live
-page rather than relying on `COMPETITION.md` or `RESOURCE_MAP.md`.
+page rather than relying on `COMPETITION.md` or `COMPETITION.md §12`.
 
 | Source | URL | Ours that summarises it |
 |---|---|---|
 | **Rules** | https://agentic-cinema.devpost.com/rules | [COMPETITION.md](COMPETITION.md) |
-| **Resources** | https://agentic-cinema.devpost.com/resources | [RESOURCE_MAP.md](RESOURCE_MAP.md) |
+| **Resources** | https://agentic-cinema.devpost.com/resources | [COMPETITION.md §12](COMPETITION.md §12) |
 | Overview | https://agentic-cinema.devpost.com/ | [COMPETITION.md](COMPETITION.md) §2 |
 | Forum | https://agentic-cinema.devpost.com/forum_topics | — |
 | Discord | https://discord.gg/7Dqk5ebCD4 | — |
@@ -43,20 +43,17 @@ Parallel's own reference — some names in `contracts.py` were written from memo
 
 ## Document map — read the one that matches your task
 
+Eight files, deliberately. If you want to add a ninth, extend one of these instead.
+
 | Doc | What's in it | Read it when |
 |---|---|---|
-| [BUILD_PROMPTS.md](BUILD_PROMPTS.md) | A ready-to-paste prompt per work unit: docs to read, file to write, rules that apply, acceptance condition | **Before you write code** — paste your work unit's prompt instead of improvising context |
-| [VERSION.md](VERSION.md) | Change log for the docs and frozen contract; doc-set version; architecture freeze status | **Second thing you read** — it tells you what moved since last session |
-| [TASKS.md](TASKS.md) | Ticketed backlog T-01…T-50 with owners, priorities, estimates, dependencies, acceptance. Critical path and day plan | **Start here every session** — pick your next ticket. Canonical over Notion |
-| [PRD.md](PRD.md) | Numbered requirements FR-1…FR-8, TS-1…TS-6, acceptance criteria, personas, non-goals, milestones, open questions | Before building any feature — find your FR number and its acceptance criterion |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Seven Mermaid diagrams: system context, components, both pipeline sequences, trust boundary, ER model, verdict rule flow | When you need to see how a piece fits, or to paste a diagram into Notion or the writeup |
-| [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) | Firestore data layer, four Agent Runtime deployments, IAM and service accounts, the **agent harness**, Model Armor settings, traces/logs/metrics, evalsets | Before deploying anything, wiring IAM, or writing an agent — **the harness is WU-00 and comes before all agents** |
-| [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md) | Scheduler, retry policy, model guardrails, prompt-injection defence, storage zones, cache regimes | Before writing a tool, a model call, or anything that touches storage or caching |
-| [COMPETITION.md](COMPETITION.md) | Verbatim rules, required SDKs, runtime-evidence requirement, submission checklist, judging criteria, disqualification risks | Before adding a dependency, choosing a deploy target, or preparing the submission |
-| [RESOURCE_MAP.md](RESOURCE_MAP.md) | Every hackathon resource mapped to the component that uses it | When picking how to implement something — prefer a listed resource; it's 25% of the score |
-| [BUILD_SPEC.md](BUILD_SPEC.md) | The five features in plain language: user action → system steps → screen → done-when | When you want the simple version of what a feature does |
-| [TEAM_BRIEF.md](TEAM_BRIEF.md) | Onboarding for a new teammate; plain-language problem framing | First read, or when explaining the project to someone |
-| [README.md](README.md) | Public-facing pitch, architecture diagram, setup, scope boundary | When editing anything a judge will read |
+| [BUILD_PROMPTS.md](BUILD_PROMPTS.md) | A ready-to-paste prompt per work unit, plus the ticket index and cut order | **Start here every session.** Paste your work unit's prompt instead of improvising context |
+| [VERSION.md](VERSION.md) | Change log for the docs and frozen contract; doc-set version; architecture freeze status | **Second thing you read** — what moved since last session, and any *Action required* |
+| [PRD.md](PRD.md) | Requirements FR-1…FR-8, TS-1…TS-6, acceptance criteria, personas, non-goals | Before building a feature — find its requirement and acceptance criterion |
+| [DESIGN.md](DESIGN.md) | **Part I** fail-safe rule, retries, guardrails, injection defence, storage, cache. **Part II** Firestore, four runtimes, IAM, the agent harness, Model Armor, observability, evaluation | Before writing a tool, a model call, an agent, or anything touching storage, IAM or deployment |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Nine Mermaid diagrams: context, components, both sequences, trust boundary, data model, verdict rules, deployment, harness | When you need to see how a piece fits, or to paste a diagram into Notion |
+| [COMPETITION.md](COMPETITION.md) | Verbatim rules, required SDKs, runtime-evidence requirement, submission checklist, judging criteria, and §12 the hackathon resources mapped to components | Before adding a dependency, choosing a deploy target, or preparing the submission |
+| [README.md](README.md) | Public pitch, how it works in plain language, what we do not claim, setup | When editing anything a judge will read |
 
 **Frozen contract (code):** [schema.sql](schema.sql) ·
 [consentinel/store/base.py](consentinel/store/base.py) ·
@@ -67,7 +64,7 @@ Parallel's own reference — some names in `contracts.py` were written from memo
 ## Hard rules — do not violate
 
 These are load-bearing. Breaking one breaks the product's core claim. Rationale in
-[TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md).
+[DESIGN.md](DESIGN.md).
 
 1. **Fetched web content is data, never instructions.** Delimited field only; never composed into a
    system prompt. Pages may contain text addressed to the agent.
@@ -151,7 +148,7 @@ people each have an AI writing code fast. (Swapping is fine; edit this section i
 - Cloud Run deployment
 
 **Swara — PM, docs and demo**
-- `TASKS.md` (owner of the backlog; mirrors it into Notion)
+- `BUILD_PROMPTS.md` (owner of the backlog; mirrors it into Notion)
 - Notion workspace: task board, user stories, architecture diagrams
 - The **Status** section of this file — she syncs it from Notion twice daily
 - Demo fixtures: generated reference images and cloned-voice clip, the fictional contract PDF
@@ -159,7 +156,7 @@ people each have an AI writing code fast. (Swapping is fine; edit this section i
 
 **Shared — edit with care, pull first:** `README.md`, `CLAUDE.md`, `requirements.txt`, the docs.
 
-If you are doing PM work, read [TASKS.md](TASKS.md) first — it holds the ticket breakdown, the
+If you are doing PM work, read [BUILD_PROMPTS.md](BUILD_PROMPTS.md) first — it holds the ticket breakdown, the
 critical path, the day plan and the cut order. Notion mirrors it; this repo is canonical, because
 Claude Code sessions read files and cannot see Notion.
 
@@ -176,7 +173,7 @@ Claude Code sessions read files and cannot see Notion.
 - Metadata in the database, bytes in object storage. Never blobs in SQL
 - Secrets from `.env` locally, Secret Manager in deploy. **The repo is public — never commit a key.**
   If one lands in history, rotate it; deleting it in a later commit does not remove it
-- Prefer a resource listed in [RESOURCE_MAP.md](RESOURCE_MAP.md) over rolling your own
+- Prefer a resource listed in [COMPETITION.md §12](COMPETITION.md §12) over rolling your own
 - Verify Google API surfaces (ADK, Gemini, Cloud Vision) against current docs before building on
   them — some names in `contracts.py` were written from memory and may have moved
 
@@ -187,7 +184,7 @@ Claude Code sessions read files and cannot see Notion.
 1. `git pull`
 2. Read the newest entries in [VERSION.md](VERSION.md) — what moved since you last looked, and
    whether anything says **Action required**
-3. Pick your next ticket from [TASKS.md](TASKS.md); check the **Status** section below so you don't
+3. Pick your next ticket from [BUILD_PROMPTS.md](BUILD_PROMPTS.md); check the **Status** section below so you don't
    rebuild finished work
 4. Check **Open questions** — if one blocks you, answer it first or say so
 5. Find the ticket's requirement in [PRD.md](PRD.md) and read its acceptance criterion
@@ -195,6 +192,8 @@ Claude Code sessions read files and cannot see Notion.
 7. **Update Status before you finish**
 
 First time on this machine: `git config core.hooksPath .githooks`
+
+**WU-00, the agent harness, blocks every other work unit.** Whoever starts first builds it.
 
 ---
 
@@ -205,7 +204,7 @@ video are public, so we do not publish authorisation verdicts about real people 
 third-party sites on camera. Sweep a category; redact identifiers in the recording.
 
 Reference images and the fake cloned-voice clip are **generated by us** with Imagen 3 and Gemini TTS
-— so no real person's likeness appears anywhere in the submission. See `RESOURCE_MAP.md`.
+— so no real person's likeness appears anywhere in the submission. See `COMPETITION.md §12`.
 
 `DEMO_MODE=true` must keep working: the full pipeline runs from cache with zero external calls, so
 the video shoot cannot die on a rate limit at 1am.
@@ -214,7 +213,7 @@ the video shoot cannot die on a rate limit at 1am.
 
 ## Status
 
-Ticket-level detail lives in [TASKS.md](TASKS.md); Swara keeps this summary in sync from Notion
+Ticket-level detail lives in [BUILD_PROMPTS.md](BUILD_PROMPTS.md); Swara keeps this summary in sync from Notion
 twice daily. **Read it before you start, update it before you finish.**
 
 - [x] Frozen contract: schema, `Store`/`Cache`/`EvidenceStore` interfaces, tool signatures, fixtures

@@ -5,7 +5,7 @@ Safe to design against. Structural changes from here need all three to agree and
 [VERSION.md](VERSION.md).
 
 Runtime placement, IAM, the agent harness, Model Armor, observability and evaluation are in
-[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md). Diagrams 8 and 9 below cover deployment and the harness.
+[DESIGN.md](DESIGN.md). Diagrams 8 and 9 below cover deployment and the harness.
 
 Mermaid sources. These render natively in **Notion** (`/code` block → language `Mermaid`), in
 GitHub, and in most wikis. Paste the fenced block contents, not the fence.
@@ -27,7 +27,7 @@ Both blocking questions are answered (confirmed against docs.parallel.ai, 7 Sep 
   reserved for candidates escalating to a dossier. Fewer full fetches, more of the judged partner
   service at runtime. Marked P1 — if it's cut, nothing else changes.
 - **No second partner product.** We are not adopting ClickHouse for v1, so OQ-2 no longer gates
-  anything. SQLite behind the `Store` interface; ClickHouse stays a documented post-hackathon path.
+  anything. Firestore behind the `Store` interface; ClickHouse stays a documented post-hackathon path.
 - One contract consequence: `search_queries` takes **2–3 queries of 3–6 words each** per call, with
   an `objective`. `QueryPlanner` batches accordingly. See `tools/contracts.py`.
 
@@ -64,7 +64,8 @@ flowchart LR
 ## 2. Component architecture
 
 The registry is the spine; two pipelines read from it in opposite directions and share one rule
-engine.
+engine. Discovery fans out across four sweeps. Every component that reads untrusted content —
+Triage and MediaTriage — holds `tools=()` and runs in the isolated `cn-triage` deployment.
 
 ```mermaid
 flowchart TB
@@ -76,8 +77,11 @@ flowchart TB
     subgraph ENF["Enforcement pipeline — outward"]
         E1["QueryPlanner<br/>2-3 queries x 3-6 words<br/>x modality x locale"]
         E2["TextSweep<br/>parallel_search<br/>location = ISO alpha-2"]
+        E7["AudioSweep<br/>voice marketplaces, P1"]
+        E8["VideoSweep<br/>synthetic ads, P1"]
         E3["ImageSweep<br/>vision_web_detection<br/>P2, cut first"]
-        E4["Triage<br/>parallel_extract first pass P1<br/>then structured extraction"]
+        E4["Triage<br/>page text, no tools"]
+        E9["MediaTriage<br/>audio and video, no tools"]
         E6["fetch_page<br/>full content, on escalation"]
         E5["DossierWriter<br/>evidence + draft notice"]
     end
@@ -103,10 +107,15 @@ flowchart TB
 
     REG --> E1
     E1 --> E2
+    E1 --> E7
+    E1 --> E8
     E1 --> E3
     E2 --> E4
     E3 --> E4
+    E7 --> E9
+    E8 --> E9
     E4 --> RE
+    E9 --> RE
     E4 -.->|"escalating to dossier"| E6
     E6 --> E5
     C1 --> C2
@@ -330,14 +339,14 @@ flowchart TD
 ```
 
 Note: any failure or exception anywhere in the pipeline resolves to **AMBIGUOUS** or **UNVERIFIED**,
-never to AUTHORIZED or CLEARED. See `TECHNICAL_DESIGN.md` §0.
+never to AUTHORIZED or CLEARED. See `DESIGN.md` §0.
 
 ---
 
 ## 8. Deployment and trust zones
 
 Four Agent Runtime deployments, six service accounts. Full IAM table in
-[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) §3.
+[DESIGN.md](DESIGN.md) §3.
 
 ```mermaid
 flowchart TB

@@ -16,35 +16,87 @@ check the acceptance line yourself before marking the story Done.
 
 ---
 
+# Epic 0 — The harness — BUILD THIS FIRST
+
+## WU-00 · Agent harness · whoever starts first · blocks everything
+
+```
+Read CLAUDE.md and DESIGN.md Part II sections 4 and 4.2.
+
+Build consentinel/harness/. EVERY agent runs through this wrapper. It is built
+once so the other fourteen agents are cheap; built per agent it will be
+inconsistent by Monday night and missing in two places.
+
+Define HarnessPolicy (frozen dataclass):
+    agent_name, timeout_s, max_attempts, output_schema | None,
+    cache: "content" | "ttl" | "none", cache_ttl_s | None,
+    armor_prompt: template | None, armor_response: template | None,
+    tools: tuple[str, ...], fail_state: "ambiguous"|"unverified"|"degraded"
+
+`tools` is NOT documentation. It is the capability boundary — the harness
+refuses any tool call whose name is absent from the tuple. Triage declares
+tools=(). This is how the trust boundary is enforced in code rather than by
+convention, so do not add an escape hatch.
+
+run() applies, in order:
+ 1  open a trace span: agent, prompt_version, sweep id, subject id
+ 2  budget check: per-call timeout, per-sweep wall clock and token ceiling
+ 3  cache lookup, recording cache_age_s
+ 4  Model Armor SanitizeUserPrompt, if armor_prompt is set
+ 5  invoke, temperature 0, forced function calling when output_schema is set
+ 6  Model Armor SanitizeModelResponse, if armor_response is set
+ 7  validate schema + the field validators (DESIGN.md Part I section 3 L3)
+ 8  on validation failure: exactly ONE repair attempt with the error appended
+ 9  classify errors, retry transient with jitter, circuit-break per provider
+10  FAIL SAFE: any unrecovered failure resolves to policy.fail_state.
+    NEVER to authorized or cleared. This is the governing rule of the system
+11  append an audit event: inputs, tool calls, output, prompt_version,
+    from_cache, cache_age_s
+12  emit metrics, close the span
+
+Write it so adding a new agent is one HarnessPolicy plus a call to run(). If
+using it is awkward, people will bypass it and the guarantees evaporate.
+
+Done when: a trivial agent wrapped in the harness produces a trace span, an
+audit row carrying cache age, and resolves to its fail_state on a forced error
+instead of raising.
+```
+
+---
+
 # Epic 1 — Consent Registry
 
-## WU-01 · SQLite Store  ·  Prachit  ·  T-01  ·  S1.1
+## WU-01 · Firestore Store  ·  Prachit  ·  S1.1
 
 ```
 Read CLAUDE.md, schema.sql and consentinel/store/base.py first.
 
-Implement consentinel/store/sqlite_store.py: a SQLiteStore class implementing the
-Store ABC from store/base.py. Every abstract method, no stubs.
+Implement consentinel/store/firestore_store.py: a FirestoreStore implementing
+the Store ABC from store/base.py. Every abstract method, no stubs.
+
+FIRESTORE, NOT SQLITE. Cloud Run's filesystem is ephemeral, so a SQLite
+registry would not survive between requests. schema.sql is the LOGICAL model —
+collections: performers, consents, findings, assets, dossiers, audit_log.
 
 Rules that bite here:
+- findings use url_hash AS THE DOCUMENT ID. That gives upsert idempotency for
+  free: a second write with the same hash updates in place and refreshes
+  last_checked. Never inserts a duplicate.
 - audit_log is append-only. Implement append_audit and list_audit; do NOT add
-  update or delete for it. The interface omits them deliberately.
-- upsert_finding is idempotent on url_hash: a second call with the same hash
-  updates the existing row and refreshes last_checked, never inserts.
-- JSON columns (aliases, territories, permitted_uses, clause_citations,
-  target_territories, provenance_metadata, tool_calls) serialise on write and
-  deserialise into the dataclass types on read.
-- Enums round-trip as their string values.
-- Read the connection string from CONSENTINEL_DB_URL; create the schema from
-  schema.sql if the database is empty.
+  update or delete. The interface omits them deliberately — removing the
+  capability beats remembering not to use it.
+- Enums round-trip as their string values; datetimes as Firestore timestamps.
+- Joins we would have done in SQL happen in Python. The data is small: a sweep
+  touches a few hundred documents at most.
+- Use the Firestore emulator for local development. Same code path, no second
+  implementation, no dev/prod drift.
 
-Do not change schema.sql or store/base.py — they are a frozen contract shared
-with the agent side. If something genuinely does not work, stop and say so
-rather than editing them.
+Do not change schema.sql or store/base.py — frozen contract shared with the
+agent side. If something genuinely does not work, stop and say so rather than
+editing them.
 
-Done when: every record type round-trips through save and load with fields
-intact, and calling upsert_finding twice with one url_hash leaves one row.
-Write a small test proving both.
+Done when: every record type round-trips with fields intact, and writing the
+same finding twice leaves exactly one document.
 ```
 
 ## WU-02 · Seed loader · Prachit · T-02
@@ -72,7 +124,7 @@ Consent record.
 
 1. Extract text per page with pypdf, keeping page numbers.
 2. One Gemini call using forced function calling (see the Forced Function
-   Calling resource in RESOURCE_MAP.md) returning: performer name, licensee,
+   Calling resource in COMPETITION.md §12) returning: performer name, licensee,
    permitted_uses (subset of voice_synth/face_replace/full_replica/
    archival_reuse), territories (ISO 3166-1 alpha-2 or WORLDWIDE), valid_from,
    valid_to, compensation_trigger.
@@ -83,7 +135,7 @@ Consent record.
 5. Return a draft. Do NOT write to the database.
 
 Temperature 0. Cache the extraction on sha256(file) + prompt_version, which
-means re-running the same PDF costs nothing (TECHNICAL_DESIGN.md 6.1).
+means re-running the same PDF costs nothing (DESIGN.md 6.1).
 
 The human save step is the web layer's job, not this module's.
 
@@ -210,7 +262,7 @@ Done when: running the same sweep twice produces zero duplicate rows.
 ## WU-08 · fetch_page · Vedant · T-11 · S3.1
 
 ```
-Read CLAUDE.md and TECHNICAL_DESIGN.md section 4.4. Check WU-04's answer first
+Read CLAUDE.md and DESIGN.md section 4.4. Check WU-04's answer first
 — if Parallel's Extract API returns full page content, use that here instead of
 fetching ourselves, and say so before writing code.
 
@@ -243,7 +295,7 @@ private address are all rejected. Write tests for all three.
 ## WU-09 · Triage extractor · Vedant · T-13 · S3.2
 
 ```
-Read CLAUDE.md, PRD.md FR-3, TECHNICAL_DESIGN.md sections 3 and 4, and the
+Read CLAUDE.md, PRD.md FR-3, DESIGN.md sections 3 and 4, and the
 TriageExtraction dataclass in consentinel/tools/contracts.py.
 
 Build consentinel/agents/triage.py: a PageSnapshot becomes a TriageExtraction.
@@ -275,7 +327,7 @@ Never prose, never a partial object.
 ## WU-10 · Extraction validators · Vedant · T-14 · S3.3
 
 ```
-Read TECHNICAL_DESIGN.md section 3 (guardrail layer L3).
+Read DESIGN.md section 3 (guardrail layer L3).
 
 Add consentinel/agents/validators.py, applied to every TriageExtraction before
 it goes anywhere near the reconciler.
@@ -301,7 +353,7 @@ test that proves it.
 ## WU-11 · Injection canary · Vedant · T-18 · S3.4
 
 ```
-Read TECHNICAL_DESIGN.md section 4.3.
+Read DESIGN.md section 4.3.
 
 Add a detector that scans fetched page text for imperative language addressed
 at an AI system — "ignore previous instructions", "you are now", "mark this as
@@ -391,7 +443,7 @@ Done when: all branches pass, including the territory case.
 ## WU-14 · Retry, backoff, circuit breaker · Vedant · T-17 · S4.5, S8.3
 
 ```
-Read TECHNICAL_DESIGN.md sections 0 and 2.
+Read DESIGN.md sections 0 and 2.
 
 Build consentinel/reliability.py and wrap every external call with it.
 
@@ -424,7 +476,7 @@ degraded rather than producing an empty clean-looking result.
 ## WU-15 · Evidence store and snapshots · Prachit (store) + Vedant (capture) · T-05, T-19 · S5.1
 
 ```
-Read TECHNICAL_DESIGN.md section 5.2 and PRD.md FR-5.1.
+Read DESIGN.md section 5.2 and PRD.md FR-5.1.
 
 Two pieces.
 
@@ -480,7 +532,7 @@ path exists anywhere in the codebase.
 ## WU-17 · Clearance pipeline · Prachit · T-21 to T-24 · S6.1–S6.4
 
 ```
-Read CLAUDE.md, PRD.md FR-6, and TECHNICAL_DESIGN.md section 5.3.
+Read CLAUDE.md, PRD.md FR-6, and DESIGN.md section 5.3.
 Requires WU-12 — you reuse its rule engine, you do not write a second one.
 
 Build consentinel/agents/clearance/ with four steps.
@@ -514,7 +566,7 @@ paperwork stays unverified.
 ## WU-18 · Audit helper · Prachit · T-06 · S7.1, S7.2
 
 ```
-Read PRD.md FR-7 and TECHNICAL_DESIGN.md section 6.
+Read PRD.md FR-7 and DESIGN.md section 6.
 
 Build consentinel/audit.py: a helper every agent step and tool call uses to
 append an AuditEvent.
@@ -541,10 +593,24 @@ Done when: every tool call produces an audit row carrying cache age.
 ## WU-19 · Cache, both regimes · Prachit · T-03, T-04 · S8.1, S8.2
 
 ```
-Read TECHNICAL_DESIGN.md section 6 in full. The two regimes are different and
+Read DESIGN.md section 6 in full. The two regimes are different and
 conflating them is the bug.
 
 Build consentinel/cache/ implementing the Cache ABC from store/base.py.
+
+STORES (decided 7 Sep): NO Redis, NO Memorystore — a VPC connector and hourly
+billing for volume that does not justify it.
+  Small structured entries (search results, extractions, plans)
+      -> Firestore `cache` collection, key hash as the document id,
+         expiry via a NATIVE TTL POLICY on an expires_at field.
+         Firestore deletes them for us; do not write a cleanup job.
+  Large blobs (page text, PDF text, media proxies, transcripts)
+      -> GCS derived/ bucket, object name = sha256. Content-addressed entries
+         need no expiry at all; Object Lifecycle rules for TTL ones.
+  Split at ~100 KB. Firestore's document ceiling is 1 MiB.
+Both are shared across Cloud Run instances — an in-process LRU is useless when
+the next request lands on a different container. DEMO_MODE's warm cache must
+therefore survive a redeploy.
 
 CONTENT-ADDRESSED — no TTL. An uploaded file never changes, so the hash IS the
 key and the entry never goes stale.
@@ -613,7 +679,7 @@ Done when: it serves locally and you can navigate between the three views.
 ## WU-22 · Registry and Findings views · Prachit · T-26, T-27, T-31 · S1.5, S4.3, S9.2
 
 ```
-Read PRD.md FR-4.4 and TECHNICAL_DESIGN.md section 4.4. Requires WU-12.
+Read PRD.md FR-4.4 and DESIGN.md section 4.4. Requires WU-12.
 
 Registry view: performers with their grants — permitted uses, territories,
 validity window at a glance, clause quotes on expand.
@@ -654,7 +720,7 @@ send action; blockers list per production.
 ## WU-24 · Agent Engine deployment · Vedant · T-33 · S9.3
 
 ```
-Read RESOURCE_MAP.md and COMPETITION.md section 5. Follow the "Deploying ADK
+Read COMPETITION.md §12 and COMPETITION.md section 5. Follow the "Deploying ADK
 Agents to Agent Engine" notebook linked from the hackathon resources page.
 
 Deploy the enforcement and clearance pipelines to Agent Engine. The web app on
@@ -704,3 +770,151 @@ locally, and no secrets sit in environment files in the deployed service.
 - **Temperature 0** everywhere except the draft notice.
 - **Every model call gets a `prompt_version`** in its cache key.
 - **Never commit a secret.** The repo is public.
+
+---
+
+# Epic 11 — Added 7 September
+
+## WU-26 · AudioSweep · Vedant · P1
+
+```
+Read DESIGN.md Part II section 2.2. Requires WU-05.
+
+Build consentinel/agents/audio_sweep.py. Voice cloning is SOLD AS AUDIO
+SAMPLES on marketplaces — text search finds the listing page but never confirms
+the offering is real.
+
+1. parallel_search with audio-oriented queries and source_policy include/exclude
+   domains aimed at voice marketplaces and audio hosts.
+2. For each candidate carrying a sample, call fetch_media (WU-28) to pull it
+   into the derived/ bucket.
+3. Return candidate URLs plus MediaRefs. STOP THERE.
+
+DO NOT ANALYSE THE MEDIA HERE. Analysis happens in MediaTriage (WU-29) inside
+cn-triage, which holds tools=(). Downloaded media is untrusted exactly as a page
+is, so it must be read by the component with no capability. Putting Gemini
+analysis in this agent would breach the trust model.
+
+Done when: a sweep returns candidate URLs and GCS URIs for their samples.
+```
+
+## WU-27 · VideoSweep · Vedant · P1
+
+```
+Same shape as WU-26, for video. Synthetic endorsements run as video ads.
+
+parallel_search with video-oriented queries and domain policy, then fetch_media
+for candidate videos. Discovery and download only — no analysis here.
+
+Done when: a sweep returns candidate video URLs and their GCS URIs.
+```
+
+## WU-28 · fetch_media tool · Vedant · P1
+
+```
+Read DESIGN.md Part I section 4.4 (the SSRF rules for fetch_page).
+
+Implement consentinel/tools/fetch_media.py:
+    fetch_media(url, max_bytes) -> MediaRef(uri, sha256, mime, bytes)
+
+SAME SSRF GUARDS AS fetch_page, no exceptions: block private and link-local
+ranges, reject non-http(s) schemes, re-validate after EVERY redirect, cap size,
+send no cookies or credentials.
+
+Writes to the GCS derived/ bucket, content-addressed by sha256 — so the same
+media fetched twice costs one download and one analysis.
+
+Done when: a private-range URL and a redirect-to-private are both rejected, and
+the same media URL fetched twice produces one object.
+```
+
+## WU-29 · MediaTriage · Vedant · P1
+
+```
+Read DESIGN.md Part II sections 2.2 and 5. Runs inside cn-triage.
+
+Build consentinel/agents/media_triage.py: an LlmAgent with tools=() that reads
+a MediaRef and returns structured observations, using Gemini multimodal
+(transcription and captioning — see COMPETITION.md §12).
+
+Answer only: is a named person referenced or depicted; does the audio contain a
+human voice; transcript excerpt; does the content match the seller's claim;
+confidence.
+
+STATE THE LIMIT IN THE CODE COMMENTS AND IN THE UI: Gemini can transcribe and
+describe. It CANNOT do speaker verification — it cannot prove a voiceprint
+belongs to a specific person. These observations are CORROBORATING EVIDENCE
+that raises confidence, never identity proof. Do not let the output phrasing
+imply otherwise.
+
+Model Armor SanitizeUserPrompt on the input, inspect-only.
+
+Done when: an audio sample yields a transcript excerpt and a confidence value,
+and no output claims identity confirmation.
+```
+
+## WU-30 · Observability · either · P1
+
+```
+Read DESIGN.md Part II section 6. Requires WU-00 — this lives in the harness,
+not scattered through the agents.
+
+Traces: one per sweep, span tree per DESIGN Part II 6.2. Attributes on every
+agent span: agent, prompt_version, cache_hit, cache_age_s, tokens_in,
+tokens_out, retry_count. On reconcile: verdict, failing_check,
+matched_consent_id. Prefer ADK's built-in OpenTelemetry over hand-rolled spans.
+
+Logs: structured JSON to Cloud Logging, correlated by trace id and sweep id.
+NEVER log page content or model output verbatim — it is attacker-controlled and
+may contain PII. Log hashes, lengths and classifications.
+
+Metrics: the 14 named in DESIGN Part II 6.4. The two that matter for the demo
+are extraction.validation_failures{reason} and model_armor.detections{type} —
+they are the guardrails' own telemetry, and they make a dashboard that
+demonstrates the security posture instead of asserting it.
+
+Done when: one sweep produces one trace with the full span tree, and the two
+security metrics are non-zero after running the adversarial evalset.
+```
+
+## WU-31 · Evalsets · Vedant · P0 for adversarial_injection
+
+```
+Read DESIGN.md Part II section 7. Use ADK's eval harness — do not invent one.
+
+Build evalsets/ and wire `adk eval` plus pytest AgentEvaluator into CI.
+
+BUILD adversarial_injection FIRST. Pages carrying injection attempts must
+produce a verdict IDENTICAL to the clean version of the same page. This is a
+security regression test written in the framework's own harness, and it is
+demo footage.
+
+Then: verdict_matrix and clearance_matrix (deterministic, no model call, so
+fast and stable in CI), then enforcement_happy and consent_extraction.
+
+Metrics: tool_trajectory_avg_score, hallucinations_v1, safety_v1,
+final_response_match_v2.
+
+Done when: `adk eval` passes on adversarial_injection and verdict_matrix, and
+both run in CI on every commit.
+```
+
+---
+
+# Ticket index
+
+The per-work-unit prompts above ARE the ticket list — there is no separate
+backlog file. Notion mirrors this for the humans (`notion/stories.csv`, 47
+stories across 10 epics); this file is what the Claude sessions read. If the two
+disagree, this repo wins.
+
+| Priority | Work units |
+|---|---|
+| **Blocks everything** | WU-00 harness |
+| **P0** | WU-01, WU-02, WU-05, WU-06, WU-07, WU-08, WU-09, WU-10, WU-12, WU-13, WU-14, WU-19, WU-20, WU-21, WU-22, WU-24, WU-25, WU-31 (adversarial only) |
+| **P1** | WU-03, WU-15, WU-16, WU-17, WU-18, WU-23, WU-26, WU-27, WU-28, WU-29, WU-30 |
+| **P2 — cut first** | WU-12 ImageSweep, scheduler |
+
+Cut order if Monday evening is behind: ImageSweep, scheduler, the two soft
+evalsets, the metrics dashboard. **Never** cut adversarial_injection, the four
+runtime deployments, or the video.
