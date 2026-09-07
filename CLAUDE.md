@@ -45,6 +45,7 @@ Parallel's own reference — some names in `contracts.py` were written from memo
 
 | Doc | What's in it | Read it when |
 |---|---|---|
+| [BUILD_PROMPTS.md](BUILD_PROMPTS.md) | A ready-to-paste prompt per work unit: docs to read, file to write, rules that apply, acceptance condition | **Before you write code** — paste your work unit's prompt instead of improvising context |
 | [VERSION.md](VERSION.md) | Change log for the docs and frozen contract; doc-set version; architecture freeze status | **Second thing you read** — it tells you what moved since last session |
 | [TASKS.md](TASKS.md) | Ticketed backlog T-01…T-50 with owners, priorities, estimates, dependencies, acceptance. Critical path and day plan | **Start here every session** — pick your next ticket. Canonical over Notion |
 | [PRD.md](PRD.md) | Numbered requirements FR-1…FR-8, TS-1…TS-6, acceptance criteria, personas, non-goals, milestones, open questions | Before building any feature — find your FR number and its acceptance criterion |

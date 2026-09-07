@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v0.1.0`**
+**Doc set version: `v0.2.0`**
 **Architecture status: 🔓 NOT FROZEN** — see [Architecture freeze](#architecture-freeze)
 
 ---
@@ -27,6 +27,7 @@ Changes to any of these require a VERSION.md entry:
 | `COMPETITION.md` | Rules and submission requirements |
 | `RESOURCE_MAP.md` | Which services we use and where |
 | `TASKS.md` | Backlog; Swara mirrors into Notion |
+| `BUILD_PROMPTS.md` | Per-work-unit prompts; changing one changes what gets built |
 | `CLAUDE.md` | The hub every session loads |
 | `BUILD_SPEC.md`, `TEAM_BRIEF.md`, `README.md` | Shared understanding |
 
@@ -106,6 +107,28 @@ commit.
 # Log
 
 Newest first.
+
+## v0.2.0 — 2026-09-07 — Prachit (with Claude)
+**Files:** `BUILD_PROMPTS.md` (new), `CLAUDE.md`, `notion/`
+**Type:** MINOR
+
+- **`BUILD_PROMPTS.md`** — 25 copy-pasteable Claude Code prompts, one per work unit, covering the
+  full P0 and P1 path. Each names the docs to read first, the file to write, the rules that bite on
+  that specific piece, and its acceptance condition. This exists because our three Claude Code
+  sessions share no context: `CLAUDE.md` loads automatically but cannot say *which* of fifty things
+  to build now.
+- **Notion board reworked** — `notion/stories.csv` replaces the 7-story list, which had the
+  hierarchy inverted (10 epics cannot sensibly hold 7 stories). Now 47 stories, 3–6 per epic, each
+  with a written description explaining what it is *and why it matters*, plus one acceptance
+  condition. Added an `Assignee` field; statuses are Ready / In Progress / Done for Board view.
+  `notion/user-stories.csv` deleted.
+- `notion/README.md` — import steps, the View → Board → Group by Status switch, property types.
+
+**Action required:**
+- Vedant: start at **WU-04** in `BUILD_PROMPTS.md`. It blocks the entire agent side *and* the
+  architecture freeze
+- Prachit: start at **WU-01** (SQLite store), then WU-02
+- Swara: import `notion/stories.csv`, switch to Board view, set the four property types
 
 ## v0.1.0 — 2026-09-07 — Prachit (with Claude)
 **Files:** all governed files — initial creation
