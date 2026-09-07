@@ -221,7 +221,8 @@ twice daily. **Read it before you start, update it before you finish.**
       architecture diagrams, backlog
 - [x] Google Cloud hackathon credits obtained
 - [ ] Store implementation (SQLite) + seed loader — *Prachit*
-- [ ] Cache layer, both regimes — *Prachit*
+- [ ] WU-02 seed loader — *Prachit*
+- [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
 - [ ] `parallel_search` via official `parallel-web` SDK + `TextSweep` — *Vedant*
 - [ ] `Triage` + `Reconciler` (deterministic rules, unit-tested) — *Vedant*
 - [ ] Findings UI + decision-trail view — *Prachit*

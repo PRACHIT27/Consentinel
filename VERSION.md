@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.3.2`**
+**Doc set version: `v1.4.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,33 @@ commit.
 # Log
 
 Newest first.
+
+## v1.4.0 - 2026-09-07 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/harness/`
+**Type:** MINOR - first code lands
+
+**WU-00 the agent harness is done. Every other work unit is unblocked.**
+
+- `harness/policy.py` - `HarnessPolicy` and `FailState`. Only three fail states exist and all three
+  express doubt; there is deliberately no success value, so no failure path can produce `authorized`
+  or `cleared`. The policy validates itself: content-addressed caches reject a TTL, and repair is
+  capped at one attempt by construction.
+- `harness/errors.py` - error classification, full-jitter backoff, circuit breaker. Unrecognised
+  errors default to PERMANENT, because an unknown error retried three times costs three times as
+  much and yields no more information.
+- `harness/ports.py` - protocols for cache, audit, armor, tracing and metrics, with no-op defaults.
+  The harness therefore does not block on WU-18, WU-19, WU-29 or WU-30; they plug in later without
+  touching the runner.
+- `harness/runner.py` - the twelve steps. `guard_tool` enforces the capability boundary and has no
+  override parameter on purpose.
+- 23 tests, all passing, including: an undeclared tool is refused, Triage with `tools=()` can call
+  nothing, a 401 is not retried, validation gets exactly one repair, an injection is labelled rather
+  than blocked on the way in while a malicious URL is blocked on the way out, and the breaker marks a
+  sweep `degraded` rather than empty.
+
+**Action required:**
+- Vedant: unblocked. Every agent you write wraps in `Harness` and declares a `HarnessPolicy`
+- Prachit: next is WU-01, the Firestore store
 
 ## v1.3.2 - 2026-09-07 - Prachit (with Claude)
 **Files:** `notion/tasks.csv`, `notion/README.md`
