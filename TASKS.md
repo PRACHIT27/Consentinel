@@ -127,13 +127,20 @@ pastes. Either is fine; the connector is faster if the setup takes under ten min
 
 ## Epic 10 — PM (Swara)
 
-| ID | Task | Pri | Est | Requirement | Acceptance |
-|---|---|---|---|---|---|
-| T-45 | Notion database set up and this backlog imported | P0 | 1h | — | Board by Owner view exists |
-| T-46 | Port user stories US-1…US-7 from `PRD.md` into Notion, linked to tasks | P0 | 1h | PRD §6 | Each story links to its implementing tasks |
-| T-47 | Architecture diagrams into Notion from `ARCHITECTURE.md` | P0 | 0.5h | — | All seven Mermaid diagrams render |
-| T-48 | Twice-daily status sync: Notion → the Status section of `CLAUDE.md` | P0 | 0.5h ×4 | — | Claude sessions never rebuild finished work |
-| T-49 | Track the four open questions to closure | P1 | 0.5h | CLAUDE.md | OQ-1, OQ-2, OQ-3, OQ-5 all answered or explicitly deferred |
+Swara's Notion page already exists — these import into it rather than creating it.
+
+| ID | Task | Pri | Est | Depends | Requirement | Acceptance |
+|---|---|---|---|---|---|---|
+| T-45 | Import this backlog into the existing Notion page as a database with the properties below | P0 | 1h | — | — | Board by Owner and Board by Status views exist |
+| T-46 | Port user stories US-1…US-7 from `PRD.md` into Notion, related to their tasks | P0 | 1h | T-45 | PRD §6 | Each story links to its implementing tasks |
+| T-47 | Architecture diagrams into Notion from `ARCHITECTURE.md` | P0 | 0.5h | **T-50** | — | All seven Mermaid diagrams render |
+| T-48 | Twice-daily status sync: Notion → the Status section of `CLAUDE.md` | P0 | 0.5h ×4 | T-45 | — | Claude sessions never rebuild finished work |
+| T-49 | Track the open questions to closure | P1 | 0.5h | — | CLAUDE.md | OQ-1, OQ-2, OQ-3, OQ-5 answered or explicitly deferred |
+| T-50 | **Architecture freeze to v1.0.0** — apply T-07's answers to `ARCHITECTURE.md`, get all three to sign off, bump `VERSION.md`, set status 🔒 | P0 | 0.5h | **T-07** | VERSION.md | Status reads FROZEN; Swara unblocked for design |
+
+> **T-50 gates T-47.** Swara should import the diagrams as a working draft immediately, but not
+> invest in polished design until the freeze — OQ-5 could replace `fetch_page` with Parallel's
+> Extract API and OQ-2 could add a ClickHouse component, either of which redraws four diagrams.
 
 ---
 

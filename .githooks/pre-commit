@@ -1,0 +1,50 @@
+#!/bin/sh
+# Consentinel pre-commit hook.
+#
+# Blocks a commit that changes a governed file (the docs and the frozen contract)
+# without also staging VERSION.md. Three people work here with separate Claude Code
+# sessions that cannot see each other; VERSION.md is how a session learns that the
+# contract moved.
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Emergency bypass:        git commit --no-verify   (then log it in the next commit)
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Governed: every top-level .md except VERSION.md itself, plus the frozen contract.
+governed=$(printf '%s\n' "$staged" | grep -E '^([A-Za-z_]+\.md|schema\.sql|consentinel/store/base\.py|consentinel/tools/contracts\.py)$' | grep -v '^VERSION\.md$')
+
+[ -z "$governed" ] && exit 0
+
+if printf '%s\n' "$staged" | grep -q '^VERSION\.md$'; then
+    exit 0
+fi
+
+cat <<EOF
+
+  ✗ Commit blocked: governed files changed without a VERSION.md entry.
+
+  Changed:
+$(printf '%s\n' "$governed" | sed 's/^/      /')
+
+  Add an entry at the top of the log in VERSION.md, then stage it:
+
+      ## vX.Y.Z — $(date +%Y-%m-%d) — <your name>
+      **Files:** <governed files touched>
+      **Type:** MAJOR | MINOR | PATCH
+      - what changed, and why it matters to someone else
+      - **Action required:** <anything a teammate must do>
+
+      MAJOR = frozen-contract change, or architecture change after freeze
+      MINOR = new doc, new requirement, scope change
+      PATCH = clarification that changes nothing anyone is building against
+
+      git add VERSION.md
+
+  Frozen contract (schema.sql, store/base.py, tools/contracts.py) also needs
+  team agreement before changing — the other half of the build codes against it.
+
+  Genuine emergency: git commit --no-verify
+
+EOF
+exit 1

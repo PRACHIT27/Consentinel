@@ -19,13 +19,34 @@ Agentic Cinema hackathon, **Parallel track**. Deadline **9 Sep 2026, 2:00 PM PDT
 Stack: Python 3.11+ · Google ADK · Gemini on Vertex · Parallel Search (`parallel-web` SDK) ·
 Cloud Vision web detection · SQLite behind `Store` · FastAPI + Jinja · Agent Engine + Cloud Run.
 
+## Canonical external references — check these, don't trust our summaries
+
+Our docs summarise these pages, and **the organisers can update them at any time**. When a question
+touches rules, eligibility, submission requirements or which services are sanctioned, fetch the live
+page rather than relying on `COMPETITION.md` or `RESOURCE_MAP.md`.
+
+| Source | URL | Ours that summarises it |
+|---|---|---|
+| **Rules** | https://agentic-cinema.devpost.com/rules | [COMPETITION.md](COMPETITION.md) |
+| **Resources** | https://agentic-cinema.devpost.com/resources | [RESOURCE_MAP.md](RESOURCE_MAP.md) |
+| Overview | https://agentic-cinema.devpost.com/ | [COMPETITION.md](COMPETITION.md) §2 |
+| Forum | https://agentic-cinema.devpost.com/forum_topics | — |
+| Discord | https://discord.gg/7Dqk5ebCD4 | — |
+
+If a live page contradicts one of our docs, **the live page wins**. Fix our doc, and log it in
+[VERSION.md](VERSION.md).
+
+Also verify Google API surfaces against current Google docs (ADK, Gemini, Cloud Vision) and
+Parallel's own reference — some names in `contracts.py` were written from memory.
+
 ---
 
 ## Document map — read the one that matches your task
 
 | Doc | What's in it | Read it when |
 |---|---|---|
-| [TASKS.md](TASKS.md) | Ticketed backlog T-01…T-49 with owners, priorities, estimates, dependencies, acceptance. Critical path and day plan | **Start here every session** — pick your next ticket. Canonical over Notion |
+| [VERSION.md](VERSION.md) | Change log for the docs and frozen contract; doc-set version; architecture freeze status | **Second thing you read** — it tells you what moved since last session |
+| [TASKS.md](TASKS.md) | Ticketed backlog T-01…T-50 with owners, priorities, estimates, dependencies, acceptance. Critical path and day plan | **Start here every session** — pick your next ticket. Canonical over Notion |
 | [PRD.md](PRD.md) | Numbered requirements FR-1…FR-8, TS-1…TS-6, acceptance criteria, personas, non-goals, milestones, open questions | Before building any feature — find your FR number and its acceptance criterion |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Seven Mermaid diagrams: system context, components, both pipeline sequences, trust boundary, ER model, verdict rule flow | When you need to see how a piece fits, or to paste a diagram into Notion or the writeup |
 | [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md) | Scheduler, retry policy, model guardrails, prompt-injection defence, storage zones, cache regimes | Before writing a tool, a model call, or anything that touches storage or caching |
@@ -66,6 +87,33 @@ These are load-bearing. Breaking one breaks the product's core claim. Rationale 
     is a competition rule (`COMPETITION.md` §3.1). Using Claude Code to *write* the code is fine.
 
 ---
+
+## Versioning — every doc change gets logged
+
+Changing a **governed file** (any top-level `.md`, `schema.sql`, `store/base.py`,
+`tools/contracts.py`) requires a [VERSION.md](VERSION.md) entry **in the same commit**. A
+`pre-commit` hook enforces this.
+
+**Run once after cloning:**
+```bash
+git config core.hooksPath .githooks
+```
+
+Write the entry for whoever reads it next, not for the record. "Renamed a field" is useless;
+"renamed `consents.territory` → `territories`, now a list — update any query against it" is what a
+teammate needs. MAJOR = frozen-contract or post-freeze architecture change · MINOR = new doc,
+requirement or scope · PATCH = clarification that changes nothing being built against.
+
+Ordinary implementation files are not governed — commit those freely.
+
+## Architecture freeze
+
+`ARCHITECTURE.md` is **🔓 not yet frozen**. Swara designs the Notion diagrams from it, so it gets
+frozen at **v1.0.0** once ticket **T-07** is answered — OQ-5 could replace `fetch_page` with
+Parallel's Extract API, and OQ-2 could add a ClickHouse component, both of which change the
+diagrams. Procedure and current status: [VERSION.md](VERSION.md#architecture-freeze).
+
+Until then the diagrams are a working draft — don't invest hours polishing them.
 
 ## Frozen contract
 
@@ -139,11 +187,16 @@ Claude Code sessions read files and cannot see Notion.
 ## Session start ritual
 
 1. `git pull`
-2. Read the **Status** section below — don't rebuild finished work
-3. Check **Open questions** — if one blocks you, answer it first or say so
-4. Find your FR number in [PRD.md](PRD.md) and its acceptance criterion
-5. Build, commit small, push
-6. **Update Status before you finish**
+2. Read the newest entries in [VERSION.md](VERSION.md) — what moved since you last looked, and
+   whether anything says **Action required**
+3. Pick your next ticket from [TASKS.md](TASKS.md); check the **Status** section below so you don't
+   rebuild finished work
+4. Check **Open questions** — if one blocks you, answer it first or say so
+5. Find the ticket's requirement in [PRD.md](PRD.md) and read its acceptance criterion
+6. Build, commit small, push. Governed file? Add a `VERSION.md` entry in the same commit
+7. **Update Status before you finish**
+
+First time on this machine: `git config core.hooksPath .githooks`
 
 ---
 
