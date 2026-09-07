@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.2.1`**
+**Doc set version: `v1.3.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,29 @@ commit.
 # Log
 
 Newest first.
+
+## v1.3.0 - 2026-09-07 - Prachit (with Claude)
+**Files:** `notion/stories.csv`
+**Type:** MINOR
+
+The board predated the harness, Model Armor, observability, evaluation, the media sweeps and the
+IAM design, so fourteen stories were missing. 47 -> 61 stories, 64h -> 87h.
+
+- **New epic 0, agent harness** - S0.1 run every agent through one harness, S0.2 declare what each
+  agent may touch. S0.1 blocks every other story in the project
+- **New epic 11, evaluation** - S11.1 prove a hostile page cannot move a verdict, S11.2 prove the
+  rule engine deterministically, S11.3 run evaluations on every commit
+- Discovery gains S2.7 audio sweep, S2.8 video sweep, S2.9 download media safely
+- Safe page reading gains S3.5 analyse media without capability, S3.6 Model Armor
+- Resilience gains S8.5 trace a sweep end to end, S8.6 quality and security metrics
+- Deployment gains S9.6 four isolated runtimes and S9.7 least privilege so evidence cannot be deleted
+- S3.4 marked superseded by S3.6 and reduced to the UI badge; S9.3 corrected to Agent Runtime and
+  cross-referenced to S9.6
+
+**Action required:**
+- Swara: re-import `notion/stories.csv` into a fresh Notion database rather than merging
+- Prachit: 24 stories, 32h. **S0.1 first** - it blocks everyone
+- Vedant: 33 stories, 51h. Heaviest load; if Monday slips, the P2s and S2.8 go first
 
 ## v1.2.1 - 2026-09-07 - Prachit (with Claude)
 **Files:** `ARCHITECTURE.md`
