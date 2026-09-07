@@ -95,59 +95,60 @@ populated field carrying a verbatim quote plus page number.
 
 # Epic 2 — Web Discovery
 
-## WU-04 · Parallel API research · Vedant · T-07 · S2.1 — DO THIS FIRST
+## WU-04 · Parallel API research · Vedant · T-07 · S2.1 — ✅ DONE 7 Sep
 
-```
-This blocks the entire agent side and the architecture freeze. Nothing else
-should start before it.
+**Do not redo this.** Answers are in `CLAUDE.md` under *Answered — 7 Sep 2026* and in the v1.0.0
+entry of `VERSION.md`. Summary:
 
-Read https://docs.parallel.ai — the Search API reference and the Extract API
-reference. Answer two questions:
+- **Locale is supported.** `location` = ISO 3166-1 alpha-2 country code (lowercase). Queries can be
+  written in any language natively — 26+ languages, 30+ countries.
+- **Extract returns compressed excerpts, not full pages.** It cannot replace `fetch_page` and cannot
+  serve as evidence. Optional P1 first-pass reader only.
+- **`search_queries` takes 2–3 queries of 3–6 words each** per call, with an `objective`. This
+  changed the `parallel_search` signature — read `tools/contracts.py` before WU-05 and WU-06.
+- Architecture is frozen at v1.0.0.
 
-OQ-1: Which region, country and language parameters does the Search API accept?
-      Exact parameter names and accepted values. If none exist, say so — we
-      fall back to language variation in the query text as a territory proxy.
-
-OQ-5: Does the Extract API return full page content? If yes: what fields, what
-      limits, what it costs. If it does, we should use it instead of our own
-      fetch_page, so the partner service covers discovery AND retrieval at
-      runtime, which strengthens the judged integration.
-
-Also confirm the official Python SDK's package name, client construction and
-the exact response shape, since we build tools/parallel_search.py against it.
-
-Write the answers into the Open Questions section of CLAUDE.md with a link to
-the page you got each from, add a VERSION.md entry, and commit.
-
-If OQ-5 is yes, flag it clearly — it changes ARCHITECTURE.md diagrams 1, 2, 3
-and 5, and the architecture freeze (T-50) depends on it.
-```
+Start at **WU-05**.
 
 ## WU-05 · parallel_search tool · Vedant · T-08 · S2.3
 
 ```
-Read CLAUDE.md, COMPETITION.md section 4, and consentinel/tools/contracts.py.
-Do WU-04 first — its answers determine the locale parameters here.
+Read CLAUDE.md (the "Answered - 7 Sep 2026" section), COMPETITION.md section 4,
+and the parallel_search docstring in consentinel/tools/contracts.py. WU-04 is
+already done — the API shape below is confirmed, not assumed.
 
-Implement consentinel/tools/parallel_search.py against the signature already in
+Implement consentinel/tools/parallel_search.py against the signature in
 tools/contracts.py.
 
-MUST use the official parallel-web Python SDK — imported and called. The
-competition rules state that referencing Parallel in the README does not
-satisfy the requirement and the integration must be present in code. Do not
-substitute raw httpx calls to their endpoint.
+MUST use the official parallel-web Python SDK — imported and called. The rules
+state that referencing Parallel in the README does not satisfy the requirement
+and the integration must be present in code. Do not substitute raw httpx.
 
-- Map the Locale dataclass onto whatever parameters WU-04 found. If the API has
-  no locale parameters, carry locale through into the query text and still
-  include it in the cache key.
-- Log every call: timestamp, query, locale, result count, latency. This log is
-  submission evidence and gets screenshotted, so make it readable.
+Confirmed parameter mapping:
+- search_queries: 2-3 keyword queries, 3-6 words each. NOT one long query.
+- objective: natural-language intent, steers ranking.
+- locale.region -> `location`, lowercase ISO 3166-1 alpha-2 (e.g. "br").
+- locale.language -> express by writing the queries IN that language.
+- mode: default "basic". A sweep is many narrow queries, so advanced-mode
+  reranking is cost we do not need.
+- session_id: pass the sweep id so one sweep's calls are tied together.
+- Worth using: source_policy.exclude_domains, source_policy.after_date,
+  max_chars_total as a cost ceiling.
+
+Response: search_id, results[] (url, title, publish_date, excerpts[]),
+warnings, session_id. Map into SearchResult / SearchResponse.
+
+- Log every call: timestamp, queries, locale, result count, latency. This log
+  is submission evidence and gets screenshotted — make it readable.
 - Append an audit event per call including from_cache and cache_age_s.
-- Cache on query + locale, 6-24h TTL.
-- Wrap in the retry policy from TECHNICAL_DESIGN.md section 2 once WU-12 exists.
+- Cache on queries + locale, 6-24h TTL.
+- Wrap in the retry policy from WU-14 once it exists.
 
-Done when: a search returns SearchResult objects and the call log shows the SDK
-being invoked with query, locale and result count.
+Note: excerpts are truncated, LLM-selected passages. Fine for triage, never
+evidence — evidence is our own snapshot (WU-15).
+
+Done when: a search returns SearchResponse and the call log shows the SDK being
+invoked with queries, location and result count.
 ```
 
 ## WU-06 · QueryPlanner · Vedant · T-09 · S2.2
@@ -159,20 +160,30 @@ Build consentinel/agents/query_planner.py as an ADK LlmAgent producing a search
 plan for a performer.
 
 Input: a Performer record (name plus aliases) and their existing grants.
-Output: a structured list of {query, locale, modality} — schema-constrained,
-no prose.
+Output: a structured list of search BATCHES — schema-constrained, no prose.
+
+CRITICAL SHAPE (confirmed against Parallel's docs, WU-04): each API call takes
+an `objective` plus **2-3 keyword queries of 3-6 words each**. So the plan is a
+list of batches, not a flat list of queries:
+
+    {objective: str, search_queries: [2-3 strings, 3-6 words each],
+     locale: Locale, modality: str}
+
+Do not emit long natural-language queries — they will be rejected or perform
+badly. "Mira Vance AI voice clone" is the right shape.
 
 - Cross the name and every alias with modality terms: AI voice, voice clone,
   voice model, AI avatar, deepfake ad, synthetic voice, and equivalents.
 - At least 5 locales spanning at least 4 languages. Suggested: en-US, pt-BR,
   es-MX, ja-JP, hi-IN. Queries must be written IN the target language, not
   English text with a locale tag — a Portuguese listing is invisible to an
-  English query.
-- Cap the plan size so a sweep stays inside the 25-candidate budget.
+  English query, and Parallel accepts multilingual input natively.
+- Cap the plan so a sweep stays inside the 25-candidate budget.
 
 Temperature 0.
 
-Done when: the plan contains genuinely non-English queries across 5+ locales.
+Done when: the plan contains genuinely non-English queries across 5+ locales,
+and every batch holds 2-3 queries of 3-6 words.
 ```
 
 ## WU-07 · TextSweep · Vedant · T-10 · S2.5

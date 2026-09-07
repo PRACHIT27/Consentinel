@@ -7,8 +7,9 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v0.2.0`**
-**Architecture status: 🔓 NOT FROZEN** — see [Architecture freeze](#architecture-freeze)
+**Doc set version: `v1.0.0`**
+**Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
+here need all three to agree and a MAJOR bump.
 
 ---
 
@@ -107,6 +108,77 @@ commit.
 # Log
 
 Newest first.
+
+## v1.0.0 — 2026-09-07 — Prachit (with Claude) — 🔒 ARCHITECTURE FROZEN
+**Files:** `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `ARCHITECTURE.md`,
+`CLAUDE.md`, `BUILD_PROMPTS.md`
+**Type:** MAJOR — frozen-contract change
+
+T-07 answered against docs.parallel.ai. Both blocking questions closed, so the architecture is
+frozen and **Swara is unblocked for design work**.
+
+**Findings**
+- **OQ-1 — locale is natively supported.** `location` takes an ISO 3166-1 alpha-2 country code;
+  queries may be written in any language with no extra config (26+ languages, 30+ countries).
+  `Locale.region` → `location`, `Locale.language` → the language of the query text. Our design maps
+  across cleanly.
+- **OQ-5 — Extract does NOT return full page content.** Compressed, objective-scoped excerpts only.
+  It cannot replace `fetch_page` and cannot serve as evidence. Adopted instead as an optional **P1**
+  cheap first-pass read during triage, with `fetch_page` reserved for dossier escalation.
+- **OQ-2 — closed by decision.** No second partner product in v1. ClickHouse stays a post-hackathon
+  path, so no component is added.
+
+**Frozen-contract change — `tools/contracts.py`**
+- `parallel_search` signature replaced. Was `(query: str, locale, limit)`. Now
+  `(objective: str, search_queries: list[str], locale, max_results, mode, session_id)` returning
+  `SearchResponse`. **The API takes 2–3 keyword queries of 3–6 words each per call, not one query.**
+  Discovering this mid-build would have meant rewriting `QueryPlanner` and `TextSweep`.
+- `SearchResult` now mirrors the real response: `url`, `title`, `publish_date`, `excerpts[]`, `raw`.
+  The old `snippet`/`rank` fields did not exist.
+- New `SearchResponse` wrapper: `search_id`, `results`, `warnings`, `session_id`.
+- New optional `parallel_extract(urls, objective)`.
+
+**Architecture changes (diagrams 2, 3, 5)**
+- `parallel_extract` added as an optional first-pass reader; `fetch_page` retained on the escalation
+  path. Extract output is untrusted content and sits inside the same boundary — the trust model is
+  unchanged.
+- Sequence diagram now shows batched queries and the `location` parameter.
+
+**New: `SYSTEM_DESIGN.md`** — the runtime and operational architecture that was missing.
+
+- **Firestore only; SQLite dropped entirely.** Cloud Run's filesystem is ephemeral, so a SQLite
+  registry would not survive between requests. `schema.sql` is now the *logical* model, Firestore
+  the physical one, behind the unchanged `Store` interface. This simplifies WU-01.
+- **Four Agent Runtime deployments**, six service accounts: `cn-enforcement`, **`cn-triage`
+  isolated on its own** (the only component ingesting hostile content), `cn-clearance`, `cn-ingest`.
+  One-runtime-per-agent was considered and rejected — eleven deploys, eleven cold starts, and no
+  security gain over `tools=()` plus data-flow isolation.
+- **IAM designed for one property:** no principal holds `objectAdmin` on the evidence bucket.
+  Enforcement gets `objectCreator`, web gets `objectViewer`, triage gets no storage at all. With
+  retention lock and versioning, *nothing in the system can delete evidence.*
+- **The agent harness (WU-00) — build before any agent.** One wrapper giving all eleven agents
+  trace spans, budgets, cache, Model Armor, schema validation, bounded repair, retry and circuit
+  breaking, fail-safe resolution, audit and metrics. Each agent declares a `HarnessPolicy` whose
+  `tools` tuple *is* the capability boundary, enforced in code.
+- **Model Armor** replaces the hand-rolled regex injection canary. Configured per trust context:
+  inspect-only on the triage path (we label injection rather than suppress a finding),
+  inspect-and-block on dossier output (a notice must never carry PII or a malicious URL).
+- **Observability**: audit log and traces are the same story at two granularities — audit is
+  permanent and never sampled, traces are operational. Span tree, log rules, and 14 named metrics
+  including `extraction.validation_failures` and `model_armor.detections`.
+- **Evaluation**: five ADK evalsets. `adversarial_injection` asserts a hostile page cannot move a
+  verdict; `verdict_matrix` and `clearance_matrix` are deterministic and free to run in CI.
+
+**Scope note:** this session added roughly 15–20 hours to an estimate that was already 64. The
+harness recovers much of it. Cut order if behind: ImageSweep → scheduler → the two soft evalsets →
+the metrics dashboard. Never cut `adversarial_injection`, the four deployments, or the video.
+
+**Action required:**
+- **Swara: unblocked.** `ARCHITECTURE.md` is frozen at v1.0.0 — import and design from it. Please
+  acknowledge the freeze
+- **Vedant:** WU-04 is complete, do not redo it. Read the revised `parallel_search` signature —
+  `QueryPlanner` must batch 2–3 short queries per call. Please acknowledge the freeze
+- **Both engineers:** the **harness (WU-00) blocks everything**. Whoever starts first builds it
 
 ## v0.2.0 — 2026-09-07 — Prachit (with Claude)
 **Files:** `BUILD_PROMPTS.md` (new), `CLAUDE.md`, `notion/`

@@ -22,24 +22,75 @@ from consentinel.store.base import Locale
 
 @dataclass
 class SearchResult:
+    """Mirrors Parallel's result shape. `excerpts` are LLM-selected passages,
+    often truncated — good enough to triage on, never good enough as evidence.
+    Evidence is our own immutable snapshot (see EvidenceStore)."""
+
     url: str
     title: Optional[str] = None
-    snippet: Optional[str] = None
-    rank: Optional[int] = None
+    publish_date: Optional[str] = None  # YYYY-MM-DD
+    excerpts: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
 
 
-def parallel_search(
-    query: str,
-    locale: Locale,
-    limit: int = 10,
-) -> list[SearchResult]:
-    """Search the open web via Parallel's Search API.
+@dataclass
+class SearchResponse:
+    search_id: str
+    results: list[SearchResult] = field(default_factory=list)
+    warnings: list[dict[str, Any]] = field(default_factory=list)
+    session_id: Optional[str] = None
 
-    Confirm Parallel's supported region/language parameters against their docs
-    before relying on them. Where geo parameters are unavailable, language
-    variation is an effective territory proxy: a voice-clone listing written in
-    Portuguese is invisible to an English-only sweep.
+
+def parallel_search(
+    objective: str,
+    search_queries: list[str],
+    locale: Locale,
+    max_results: int = 10,
+    mode: str = "basic",
+    session_id: Optional[str] = None,
+) -> SearchResponse:
+    """Search the open web via Parallel's Search API (official `parallel-web` SDK).
+
+    Confirmed against docs.parallel.ai on 2026-09-07:
+
+    * `search_queries` takes **2-3 keyword queries of 3-6 words each**, not one
+      long query. QueryPlanner must batch accordingly.
+    * `objective` is a natural-language statement of intent that steers ranking.
+    * `locale.region` maps to Parallel's `location` — an ISO 3166-1 alpha-2
+      country code (lowercase, e.g. "br"). `locale.language` is expressed by
+      writing the queries *in that language*; multilingual input is native,
+      no extra configuration.
+    * `mode` is one of turbo | fast | basic | advanced (their default is
+      advanced). We default to `basic`: a sweep is many narrow queries, so
+      per-call reranking is cost we don't need.
+    * `session_id` ties the calls of one sweep together — pass the sweep id.
+
+    Also available on their advanced settings and worth using:
+    `source_policy.exclude_domains` (drop known-irrelevant hosts),
+    `source_policy.after_date` (freshness), `max_chars_total` (cost ceiling).
+
+    Log every call: timestamp, queries, locale, result count. That log is
+    submission evidence — the rules require the integration be called at
+    runtime, not merely named.
+    """
+    raise NotImplementedError
+
+
+def parallel_extract(
+    urls: list[str],
+    objective: str,
+) -> dict[str, str]:
+    """OPTIONAL (P1). Parallel's Extract API: compressed, objective-scoped
+    excerpts for a set of URLs.
+
+    It does **not** return full page content, so it cannot replace `fetch_page`
+    and cannot serve as evidence. Its use here is as a cheap first-pass read
+    during triage, with `fetch_page` reserved for candidates escalating to a
+    dossier — fewer full fetches, and more of the judged partner service at
+    runtime.
+
+    Returns url -> extracted text. Treat that text as untrusted data exactly
+    like `fetch_page` output.
     """
     raise NotImplementedError
 

@@ -50,6 +50,7 @@ Parallel's own reference — some names in `contracts.py` were written from memo
 | [TASKS.md](TASKS.md) | Ticketed backlog T-01…T-50 with owners, priorities, estimates, dependencies, acceptance. Critical path and day plan | **Start here every session** — pick your next ticket. Canonical over Notion |
 | [PRD.md](PRD.md) | Numbered requirements FR-1…FR-8, TS-1…TS-6, acceptance criteria, personas, non-goals, milestones, open questions | Before building any feature — find your FR number and its acceptance criterion |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Seven Mermaid diagrams: system context, components, both pipeline sequences, trust boundary, ER model, verdict rule flow | When you need to see how a piece fits, or to paste a diagram into Notion or the writeup |
+| [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) | Firestore data layer, four Agent Runtime deployments, IAM and service accounts, the **agent harness**, Model Armor settings, traces/logs/metrics, evalsets | Before deploying anything, wiring IAM, or writing an agent — **the harness is WU-00 and comes before all agents** |
 | [TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md) | Scheduler, retry policy, model guardrails, prompt-injection defence, storage zones, cache regimes | Before writing a tool, a model call, or anything that touches storage or caching |
 | [COMPETITION.md](COMPETITION.md) | Verbatim rules, required SDKs, runtime-evidence requirement, submission checklist, judging criteria, disqualification risks | Before adding a dependency, choosing a deploy target, or preparing the submission |
 | [RESOURCE_MAP.md](RESOURCE_MAP.md) | Every hackathon resource mapped to the component that uses it | When picking how to implement something — prefer a listed resource; it's 25% of the score |
@@ -109,12 +110,8 @@ Ordinary implementation files are not governed — commit those freely.
 
 ## Architecture freeze
 
-`ARCHITECTURE.md` is **🔓 not yet frozen**. Swara designs the Notion diagrams from it, so it gets
-frozen at **v1.0.0** once ticket **T-07** is answered — OQ-5 could replace `fetch_page` with
-Parallel's Extract API, and OQ-2 could add a ClickHouse component, both of which change the
-diagrams. Procedure and current status: [VERSION.md](VERSION.md#architecture-freeze).
-
-Until then the diagrams are a working draft — don't invest hours polishing them.
+`ARCHITECTURE.md` is **🔒 FROZEN at v1.0.0** (7 Sep 2026). Safe to design against. A structural
+change from here needs all three of us to agree and a MAJOR bump in [VERSION.md](VERSION.md).
 
 ## Frozen contract
 
@@ -241,11 +238,28 @@ twice daily. **Read it before you start, update it before you finish.**
 
 | ID | Question | Owner |
 |---|---|---|
-| OQ-1 | Which region/language parameters does Parallel's Search API expose? Affects the query planner and every web cache key | Vedant |
-| OQ-5 | Does Parallel's **Extract API** return full page content? If yes, use it instead of our own `fetch_page` — partner service then covers discovery *and* retrieval | Vedant |
-| OQ-2 | Do the rules permit using a second partner's product (e.g. ClickHouse) alongside our track? | either |
 | OQ-3 | Current Cloud Vision web-detection API surface and quota | Vedant |
 | OQ-4 | Screenshot capture approach for evidence snapshots on Cloud Run | Prachit |
 
-OQ-1 and OQ-5 are ticket **T-07** and block the entire agent side. Do them first.
-Swara tracks all four to closure (T-49).
+Both remaining questions affect P2/P1 work only and gate nothing. Swara tracks them (T-49).
+
+### Answered — 7 Sep 2026, from docs.parallel.ai
+
+**OQ-1 — locale: fully supported.** `location` takes an **ISO 3166-1 alpha-2 country code**
+(lowercase, e.g. `br`), inside advanced settings. Queries can be written in **any language** with no
+extra configuration — 26+ languages, 30+ countries. `Locale.region` → `location`;
+`Locale.language` → the language the query text is written in.
+
+**OQ-5 — Extract does NOT return full page content.** It returns compressed, objective-scoped
+excerpts. It therefore **cannot replace `fetch_page`** and **cannot serve as evidence**.
+`fetch_page` stays. Extract is adopted as an optional **P1** cheap first-pass read during triage,
+with `fetch_page` reserved for candidates escalating to a dossier.
+
+**OQ-2 — closed by decision.** We are not adopting a second partner product for v1. SQLite behind
+the `Store` interface; ClickHouse remains a documented post-hackathon path.
+
+**Contract consequence:** `search_queries` takes **2–3 keyword queries of 3–6 words each** per call,
+alongside a natural-language `objective`. Other useful parameters: `mode`
+(turbo|fast|basic|advanced — we default to `basic`), `max_results`, `max_chars_total`,
+`source_policy.exclude_domains`, `source_policy.after_date`, `session_id`. Response is
+`search_id`, `results[]` (`url`, `title`, `publish_date`, `excerpts[]`), `warnings`, `session_id`.

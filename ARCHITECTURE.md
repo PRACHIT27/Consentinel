@@ -1,10 +1,35 @@
 # Consentinel — architecture diagrams
 
+**Status: 🔒 FROZEN at v1.0.0 (2026-09-07)** — approved by Prachit; Vedant and Swara to acknowledge.
+Safe to design against. Structural changes from here need all three to agree and a MAJOR bump in
+[VERSION.md](VERSION.md).
+
+Runtime placement, IAM, the agent harness, Model Armor, observability and evaluation are in
+[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md). Diagrams 8 and 9 below cover deployment and the harness.
+
 Mermaid sources. These render natively in **Notion** (`/code` block → language `Mermaid`), in
 GitHub, and in most wikis. Paste the fenced block contents, not the fence.
 
 For the demo video, diagram 5 (trust boundary) is the most distinctive — most submissions won't
 have one.
+
+## What the Parallel API research settled
+
+Both blocking questions are answered (confirmed against docs.parallel.ai, 7 Sep 2026):
+
+- **Locale is natively supported.** `location` takes an ISO 3166-1 alpha-2 country code, and queries
+  may be written in any language with no extra configuration — 26+ languages, 30+ countries. Our
+  `Locale(language, region)` maps directly: region → `location`, language → the language the query
+  is written in.
+- **Extract does *not* return full page content.** It returns compressed, objective-scoped excerpts.
+  So it **cannot** replace `fetch_page` and **cannot** serve as evidence. `fetch_page` stays.
+- Extract earns a place as an **optional cheap first-pass read** during triage, with `fetch_page`
+  reserved for candidates escalating to a dossier. Fewer full fetches, more of the judged partner
+  service at runtime. Marked P1 — if it's cut, nothing else changes.
+- **No second partner product.** We are not adopting ClickHouse for v1, so OQ-2 no longer gates
+  anything. SQLite behind the `Store` interface; ClickHouse stays a documented post-hackathon path.
+- One contract consequence: `search_queries` takes **2–3 queries of 3–6 words each** per call, with
+  an `objective`. `QueryPlanner` batches accordingly. See `tools/contracts.py`.
 
 ---
 
@@ -49,10 +74,11 @@ flowchart TB
     end
 
     subgraph ENF["Enforcement pipeline — outward"]
-        E1["QueryPlanner<br/>queries x modality x locale"]
-        E2["TextSweep<br/>parallel_search"]
-        E3["ImageSweep<br/>vision_web_detection"]
-        E4["Triage<br/>fetch + structured extraction"]
+        E1["QueryPlanner<br/>2-3 queries x 3-6 words<br/>x modality x locale"]
+        E2["TextSweep<br/>parallel_search<br/>location = ISO alpha-2"]
+        E3["ImageSweep<br/>vision_web_detection<br/>P2, cut first"]
+        E4["Triage<br/>parallel_extract first pass P1<br/>then structured extraction"]
+        E6["fetch_page<br/>full content, on escalation"]
         E5["DossierWriter<br/>evidence + draft notice"]
     end
 
@@ -81,6 +107,8 @@ flowchart TB
     E2 --> E4
     E3 --> E4
     E4 --> RE
+    E4 -.->|"escalating to dossier"| E6
+    E6 --> E5
     C1 --> C2
     C2 --> C3
     C3 --> RE
@@ -111,10 +139,10 @@ sequenceDiagram
     participant DB as Store + audit_log
 
     U->>QP: run sweep for performer
-    QP->>QP: build queries x modality x locale
-    loop per query
-        QP->>PS: search(query, locale)
-        PS-->>QP: url, title, excerpts
+    QP->>QP: build 2-3 queries x 3-6 words, per modality and locale
+    loop per batch
+        QP->>PS: search(objective, search_queries[2-3], location=ISO, mode=basic)
+        PS-->>QP: url, title, publish_date, excerpts
     end
     QP->>QP: dedupe on url_hash
     loop per candidate
@@ -178,6 +206,7 @@ flowchart TB
     end
 
     subgraph BOUNDARY["BOUNDARY — extraction only"]
+        X["parallel_extract<br/>compressed excerpts, P1<br/>still untrusted content"]
         F["fetch_page<br/>SSRF guards, size caps, no credentials"]
         T["Triage extractor<br/>NO TOOLS<br/>schema constrained output only"]
         V["Validators<br/>quote must be verbatim substring<br/>name must match registry<br/>ISO codes, confidence range"]
@@ -193,7 +222,9 @@ flowchart TB
         H["Send takedown notice<br/>no send capability exists in the product"]
     end
 
+    W -->|"content as DATA<br/>delimited field"| X
     W -->|"content as DATA<br/>delimited field"| F
+    X --> T
     F --> T
     T -->|"TriageExtraction"| V
     V -->|"validated fields only"| RC
@@ -300,3 +331,104 @@ flowchart TD
 
 Note: any failure or exception anywhere in the pipeline resolves to **AMBIGUOUS** or **UNVERIFIED**,
 never to AUTHORIZED or CLEARED. See `TECHNICAL_DESIGN.md` §0.
+
+---
+
+## 8. Deployment and trust zones
+
+Four Agent Runtime deployments, six service accounts. Full IAM table in
+[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) §3.
+
+```mermaid
+flowchart TB
+    U["Users and judges"]
+
+    subgraph CR["Cloud Run — consentinel-web@"]
+        W["FastAPI + Jinja<br/>Registry · Findings · Clearance"]
+    end
+
+    subgraph AR["Agent Runtime — 4 deployments"]
+        E["cn-enforcement<br/>consentinel-enforcement@<br/>Planner · Sweep · Reconciler · Dossier"]
+        T["cn-triage — ISOLATED<br/>consentinel-triage@<br/>Triage only · no tools · no writes"]
+        C["cn-clearance<br/>consentinel-clearance@<br/>Ingest · Paperwork · Inspector · Manifest"]
+        I["cn-ingest<br/>consentinel-ingest@<br/>ConsentIngest"]
+    end
+
+    subgraph DATA["Data"]
+        FS[("Firestore<br/>registry · findings · assets · audit")]
+        EV[("GCS evidence<br/>retention lock<br/>no delete path")]
+        UP[("GCS uploads and derived")]
+        SM["Secret Manager<br/>Parallel key"]
+    end
+
+    subgraph EXT["External"]
+        P["Parallel Search"]
+        G["Gemini on Vertex"]
+        MA["Model Armor"]
+        V["Cloud Vision"]
+        WEB["Open web — UNTRUSTED"]
+    end
+
+    SCH["Cloud Scheduler<br/>consentinel-scheduler@"]
+
+    U --> W
+    W -->|invoke| E
+    W -->|invoke| C
+    W -->|invoke| I
+    E -->|invoke| T
+    SCH -->|"run.invoker only"| W
+
+    E --> P
+    E --> V
+    E --> G
+    T --> G
+    T --> MA
+    C --> G
+    I --> G
+    WEB -.->|"hostile content"| T
+
+    E -->|"objectCreator<br/>create only"| EV
+    W -->|"objectViewer<br/>read only"| EV
+    C --> UP
+    I --> UP
+    E --> FS
+    C --> FS
+    I --> FS
+    T -->|"read only"| FS
+    E --> SM
+```
+
+**The property to notice:** no principal holds `objectAdmin` on the evidence bucket. Combined with
+retention lock and object versioning, **nothing in the system can delete evidence.** And Triage —
+the only component touching attacker-controlled content — holds the weakest permissions of anything
+here: no secrets, no storage, no database writes, no tools.
+
+---
+
+## 9. The agent harness
+
+Every agent runs through one wrapper. Built once (WU-00), it is why the other ten agents are cheap.
+
+```mermaid
+flowchart LR
+    IN["Agent invocation"] --> S1["1 open trace span"]
+    S1 --> S2["2 budget check<br/>timeout, token ceiling"]
+    S2 --> S3["3 cache lookup<br/>records cache_age_s"]
+    S3 --> S4["4 Model Armor<br/>SanitizeUserPrompt<br/>untrusted input only"]
+    S4 --> S5["5 invoke<br/>temp 0, forced function calling"]
+    S5 --> S6["6 Model Armor<br/>SanitizeModelResponse<br/>outward text only"]
+    S6 --> S7["7 validate schema<br/>+ field validators"]
+    S7 -->|"invalid"| S8["8 repair — one attempt"]
+    S8 --> S7
+    S7 -->|"valid"| S11["11 audit append"]
+    S5 -->|"error"| S9["9 classify, retry,<br/>circuit break"]
+    S9 -->|"unrecovered"| S10["10 FAIL SAFE<br/>ambiguous / unverified / degraded<br/>NEVER authorized or cleared"]
+    S10 --> S11
+    S11 --> S12["12 emit metrics,<br/>close span"]
+    S12 --> OUT["Result"]
+```
+
+Each agent declares a `HarnessPolicy` carrying its timeout, retry budget, output schema, cache
+regime, Model Armor templates and **`tools` tuple**. That tuple is not documentation — the harness
+refuses any tool call not named in it, which is how the trust boundary is enforced in code rather
+than by convention. Triage declares `tools=()`.
