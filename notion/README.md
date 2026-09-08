@@ -96,3 +96,26 @@ into the **Status** section of `CLAUDE.md`. Without that, two Claude sessions wi
 work that is already finished.
 
 If either CSV is regenerated, re-import into a **fresh** database rather than trying to merge.
+
+## Status columns
+
+Both CSVs now carry a `Branch` column (the epic branch the work lands on), and `tasks.csv` carries a
+`Notes` column for anything a reader needs that is not in the description — mostly "done, and here is
+the caveat".
+
+Set `Branch` to a plain Select. It is what tells you, at a glance on the board, whether two people
+are about to touch the same branch.
+
+### Keeping status current
+
+`tasks.csv` and `stories.csv` in the repo are regenerated as work completes, so they always reflect
+the truth at their commit. Notion is the mirror.
+
+**Swara's sync (twice daily):** move cards in Notion as people report progress, and copy the summary
+into the **Status** section of `CLAUDE.md`. When the repo CSVs are regenerated, re-import into fresh
+databases rather than merging — the `Status` values in the file are a snapshot, not a source of truth
+for cards you have already moved.
+
+If a card in Notion and the repo disagree about *what a task is*, the repo wins. If they disagree
+about *how far along it is*, Notion wins — that is the one direction Notion is authoritative, because
+it is where the humans actually move things.
