@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.6.0`**
+**Doc set version: `v1.6.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,21 @@ commit.
 # Log
 
 Newest first.
+
+## v1.6.1 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md`
+**Type:** PATCH
+
+Three stale facts in the hub doc, which is the file every session loads:
+- the stack line still said SQLite behind `Store`; it is Firestore, and Agent Engine is now called
+  Agent Runtime
+- a broken markdown link, `[COMPETITION.md §12](COMPETITION.md §12)`, left by the consolidation
+- "two people are building this" - we are three
+
+Second pass caught four more of the same kind: two more `Agent Engine` references (it is Agent
+Runtime), another broken `COMPETITION.md §12` link, and a stale "SQLite behind the Store interface"
+inside the OQ-2 answer. The consolidation left more dangling references than the first sweep found -
+worth grepping for `SQLite`, `Agent Engine` and the old filenames if anything else looks off.
 
 ## v1.6.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `consentinel/seed.py` and a `doc_id_for` helper
