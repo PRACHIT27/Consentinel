@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.4.0`**
+**Doc set version: `v1.4.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,22 @@ commit.
 # Log
 
 Newest first.
+
+## v1.4.1 - 2026-09-07 - Prachit (with Claude)
+**Files:** `CLAUDE.md`
+**Type:** PATCH
+
+Added the branching and pull-request convention: one branch and one PR per epic, with the WU-to-epic
+mapping written out. A PR per work unit would mean forty reviews in two days and nobody would read
+any of them.
+
+Two rules worth calling out. Push the branch EARLY, before the epic is done - an open PR is how the
+other engineer sees that a file is being worked on, which is the real defence against merge
+conflicts. And frozen-contract changes never travel inside an epic PR; they get their own small PR
+so the change is visible rather than buried in four hundred lines of feature work.
+
+**Action required:**
+- Vedant: your first branch is `epic/2-web-discovery`. Branch from main, push before you finish
 
 ## v1.4.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/harness/`
