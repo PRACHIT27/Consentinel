@@ -1,0 +1,4 @@
+reportlab
+pypdf
+pytest
+ruff
