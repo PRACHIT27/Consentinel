@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.4.1`**
+**Doc set version: `v1.5.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,21 +107,34 @@ commit.
 
 Newest first.
 
-## v1.4.1 - 2026-09-07 - Prachit (with Claude)
-**Files:** `CLAUDE.md`
-**Type:** PATCH
+## v1.5.0 - 2026-09-07 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/store/`
+**Type:** MINOR
 
-Added the branching and pull-request convention: one branch and one PR per epic, with the WU-to-epic
-mapping written out. A PR per work unit would mean forty reviews in two days and nobody would read
-any of them.
+**WU-01 the Firestore store is done. 36 tests passing, 11 of them against the real project.**
 
-Two rules worth calling out. Push the branch EARLY, before the epic is done - an open PR is how the
-other engineer sees that a file is being worked on, which is the real defence against merge
-conflicts. And frozen-contract changes never travel inside an epic PR; they get their own small PR
-so the change is visible rather than buried in four hundred lines of feature work.
+Infrastructure now live on project `consentinel`: Firestore database created in **us-central1**,
+native mode (the location is permanent). APIs enabled: aiplatform, secretmanager, vision, run,
+modelarmor, on top of firestore, cloudtrace, monitoring and storage.
+
+- `store/codec.py` - one generic dataclass to document codec rather than six hand-rolled converter
+  pairs. Handles enums, timezone-aware datetimes, Optional and lists. Unknown keys are ignored and
+  missing keys fall back to defaults, so adding a field does not break reads of older documents -
+  which is where hand-rolled converters silently drop data.
+- `store/firestore_store.py` - two properties worth knowing. A finding's document id IS its
+  `url_hash`, so upsert idempotency is free and two documents for one URL is structurally
+  impossible. And `first_seen` survives a re-sweep while `last_checked` refreshes, because
+  otherwise "when did we first see this" resets on every run and scheduled monitoring means nothing.
+- `purge()` refuses to run without a collection prefix. An unprefixed purge would delete the real
+  registry and audit trail, which is the exact operation the rest of the class exists to prevent.
+- Tests run under a throwaway `test_<random>_` prefix and clean up after themselves. They assert
+  that `audit_log` has no update or delete method by checking the attributes are ABSENT, and that
+  re-appending an audit id is rejected.
 
 **Action required:**
-- Vedant: your first branch is `epic/2-web-discovery`. Branch from main, push before you finish
+- Everyone: run `gcloud auth application-default login --project=consentinel` once. Client libraries
+  need ADC; `gcloud auth login` alone is not enough
+- Prachit: next is WU-02, the seed loader
 
 ## v1.4.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/harness/`
