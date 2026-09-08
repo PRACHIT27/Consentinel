@@ -260,7 +260,8 @@ twice daily. **Read it before you start, update it before you finish.**
 - [ ] Store implementation (SQLite) + seed loader — *Prachit*
 - [ ] WU-02 seed loader — *Prachit*
 - [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
-- [ ] `parallel_search` via official `parallel-web` SDK + `TextSweep` — *Vedant*
+- [x] `parallel_search` via official `parallel-web` SDK — *Vedant* (WU-05, 23 tests)
+- [ ] `QueryPlanner` (WU-06) + `TextSweep` (WU-07) — *Vedant*
 - [ ] `Triage` + `Reconciler` (deterministic rules, unit-tested) — *Vedant*
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
@@ -300,3 +301,15 @@ alongside a natural-language `objective`. Other useful parameters: `mode`
 (turbo|fast|basic|advanced — we default to `basic`), `max_results`, `max_chars_total`,
 `source_policy.exclude_domains`, `source_policy.after_date`, `session_id`. Response is
 `search_id`, `results[]` (`url`, `title`, `publish_date`, `excerpts[]`), `warnings`, `session_id`.
+
+### Verified against the installed SDK — 9 Sep 2026, `parallel-web` 1.3.3 (WU-05)
+
+Two details the summary above does not capture. Build WU-06 and WU-07 against these, not against
+the doc prose:
+
+- The call is **`client.search(...)`** — top level, not `client.beta.search`.
+- **`location`, `max_results` and `source_policy` are not top-level arguments.** They live inside
+  `advanced_settings`. Only `search_queries`, `objective`, `mode`, `max_chars_total`, `session_id`
+  and `client_model` are top level. `consentinel/tools/parallel_search.py` does this mapping;
+  a test asserts every key we send exists in the installed SDK's param types, so drift fails loudly.
+- There is no language parameter — the query text carries the language, as WU-04 found.

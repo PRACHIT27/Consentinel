@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.5.0`**
+**Doc set version: `v1.5.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,49 @@ commit.
 # Log
 
 Newest first.
+
+## v1.5.1 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (Parallel SDK surface, status), plus new code under `consentinel/tools/`
+**Type:** PATCH — the frozen `parallel_search` signature is unchanged
+
+**WU-05 is done. 59 tests passing (36 existing + 23 new).**
+
+The frozen signature in `tools/contracts.py` holds exactly as written. What moved is *where the
+arguments go* once they reach the SDK, checked against the installed `parallel-web` 1.3.3 rather
+than the doc prose:
+
+- the call is `client.search(...)`, top level, not `client.beta.search`;
+- `location`, `max_results` and `source_policy` are **not** top-level arguments — they live in
+  `advanced_settings`. Only `search_queries`, `objective`, `mode`, `max_chars_total`, `session_id`
+  and `client_model` are top level.
+
+`consentinel/tools/parallel_search.py` owns that mapping, so nothing else needs to know it. Also
+worth knowing about the implementation:
+
+- It runs through the WU-00 harness, so retries, backoff, circuit breaking, TTL cache and fail-safe
+  come from there. The SDK client is built with `max_retries=0` — two retry loops turn one rate
+  limit into nine.
+- **A failure returns a `SearchResponse` carrying a `consentinel_degraded` warning, not an empty
+  result list.** Use `is_degraded(response)` / `degraded_reason(response)`. A sweep that could not
+  look must not read like a sweep that looked and found nothing (hard rule 10).
+- Cache key is queries + locale + everything else that changes the result set, TTL 6h. `session_id`
+  is deliberately *out* of the key: it groups one sweep's calls on Parallel's side and would
+  otherwise fragment the cache across sweeps asking identical questions.
+- `DEMO_MODE=true` serves cache hits and refuses to reach the network on a miss (degraded).
+- Every call writes one readable log line on `consentinel.parallel_search` plus an audit row with
+  queries, locale, result count, latency, `from_cache` and `cache_age_s`. That log is the
+  runtime-evidence screenshot — `enable_call_log()` turns it on from a plain script.
+- `consentinel/tools/__init__.py` now exports the implementation, so `from consentinel.tools import
+  parallel_search` gives the working tool rather than the contract stub.
+
+`requirements.txt`: added `google-cloud-firestore`. WU-01's 13 store tests skip silently without it,
+so a fresh clone saw 23 tests, not 36.
+
+**Action required:**
+- Whoever writes WU-06/WU-07: emit batches of 2-3 queries of 3-6 words and call
+  `ParallelSearch.search_detailed(...)` if you need attempts or cache age for a partial-sweep
+  report. Check `is_degraded` before treating an empty result set as "nothing out there"
+- Everyone: `pip install -r requirements.txt` again to pick up `google-cloud-firestore`
 
 ## v1.5.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/store/`
