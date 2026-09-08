@@ -257,7 +257,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] Docs: PRD, technical design, competition requirements, resource map, build spec, team brief,
       architecture diagrams, backlog
 - [x] Google Cloud hackathon credits obtained
-- [ ] Store implementation (SQLite) + seed loader — *Prachit*
+- [x] WU-01 Firestore store, WU-02 seed loader — *Prachit* — real registry seeded
 - [ ] WU-02 seed loader — *Prachit*
 - [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
 - [ ] `parallel_search` via official `parallel-web` SDK + `TextSweep` — *Vedant*

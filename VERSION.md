@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.5.0`**
+**Doc set version: `v1.6.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,33 @@ commit.
 # Log
 
 Newest first.
+
+## v1.6.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/seed.py` and a `doc_id_for` helper
+**Type:** MINOR
+
+**WU-02 the seed loader is done. 44 tests passing. The real registry now holds live data.**
+
+Seeded into project `consentinel`: Mira Vance, the Halcyon Pictures grant (voice_synth and
+archival_reuse, US and CA only), four findings covering all three verdicts including the pt-BR
+territory-scoped one, and three assets covering cleared, blocked and unverified.
+
+- `seed.py` reuses `from_doc` rather than hand-rolling JSON conversion, so the fixture decodes
+  through exactly the same path Firestore reads take and cannot drift from the store's own decoding.
+- **Found a real bug while testing.** `reset` deleted by `record.id`, which silently missed every
+  finding, because a finding's document id is its `url_hash`. Fixed by adding `doc_id_for()` to
+  `firestore_store.py` as the single source of that rule - anything addressing a document directly
+  asks it rather than reimplementing the convention.
+- `--reset` deviates from the work unit as written, which said "drop and recreate the schema" back
+  when the store was SQLite. Firestore has no schema to drop and `purge()` refuses to run without a
+  collection prefix, so `--reset` deletes exactly the documents the fixture defines and nothing else.
+- Two tests guard the demo rather than the code: one fails if a fixture edit drops the pt-BR
+  territory-scoped finding, one fails if the assets stop covering all three clearance states. Both
+  would otherwise surface as a flat demo on the 9th.
+
+**Action required:**
+- Vedant: the registry has real data now. `WU-12` reconciler can be tested against the seeded grant
+- Prachit: next is WU-18 (audit helper) then WU-19 (cache), which plug into the harness ports
 
 ## v1.5.0 - 2026-09-07 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/store/`
