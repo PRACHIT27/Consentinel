@@ -9,6 +9,7 @@ google-genai
 parallel-web
 
 # Google Cloud services
+google-cloud-firestore         # the registry behind Store (WU-01); its tests skip without it
 google-cloud-vision            # reverse-image (web detection) discovery
 google-cloud-storage           # immutable evidence snapshots
 google-cloud-secret-manager    # secrets in deploy (resources page, Phase 5)
