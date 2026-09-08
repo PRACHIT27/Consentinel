@@ -87,6 +87,43 @@ These are load-bearing. Breaking one breaks the product's core claim. Rationale 
 
 ---
 
+## Branching and pull requests
+
+**One branch and one PR per epic.** Not per work unit - a PR per WU would mean forty reviews in two
+days, and nobody would read any of them.
+
+```
+epic/0-harness                 WU-00                     merged to main
+epic/1-consent-registry        WU-01, WU-02, WU-03
+epic/2-web-discovery           WU-04..WU-07, WU-26..WU-28, WU-32
+epic/3-safe-page-reading       WU-08..WU-11, WU-29
+epic/4-verdicts                WU-12, WU-13, WU-14
+epic/5-enforcement-output      WU-15, WU-16
+epic/6-delivery-clearance      WU-17
+epic/7-auditability            WU-18
+epic/8-performance-resilience  WU-19, WU-20, WU-30, WU-33
+epic/9-deployment              WU-21..WU-25, WU-34
+epic/10-submission             WU-35, WU-36, WU-37
+epic/11-evaluation             WU-31
+```
+
+**Rules**
+- Branch from up-to-date `main`. `git pull` first, every time
+- Commit per work unit, so a PR reads as a sequence of finished units rather than one blob
+- **Push early**, before the epic is finished. An open PR is how the other person sees that a file
+  is being worked on, which is the actual defence against merge conflicts
+- Tests pass before you push. `python -m pytest tests/ -q`
+- Squash-merge to `main`, then delete the branch
+- **Do not review your own PR into main if the other engineer is awake.** If they are asleep and it
+  is P0, merge it and say so in the PR body
+
+**A PR body should say:** which work units it closes, which stories it delivers, the test count, and
+anything the reviewer should push back on. Not a restatement of the diff - the diff is right there.
+
+**Frozen-contract changes never travel in an epic PR.** `schema.sql`, `store/base.py` and
+`tools/contracts.py` get their own small PR so the change is visible rather than buried in four
+hundred lines of feature work.
+
 ## Versioning — every doc change gets logged
 
 Changing a **governed file** (any top-level `.md`, `schema.sql`, `store/base.py`,
