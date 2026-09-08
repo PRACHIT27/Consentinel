@@ -1,6 +1,6 @@
 # Consentinel — read this first
 
-This file is the hub. Two people are building this in parallel with separate Claude Code sessions
+This file is the hub. Three people are building this in parallel with separate Claude Code sessions
 that cannot see each other, so everything either of us needs to stay consistent lives here or is
 linked from here.
 
@@ -17,18 +17,18 @@ Agentic Cinema hackathon, **Parallel track**. Deadline **9 Sep 2026, 2:00 PM PDT
 **12:00 PDT**.
 
 Stack: Python 3.11+ · Google ADK · Gemini on Vertex · Parallel Search (`parallel-web` SDK) ·
-Cloud Vision web detection · SQLite behind `Store` · FastAPI + Jinja · Agent Engine + Cloud Run.
+Cloud Vision web detection · **Firestore** behind `Store` · FastAPI + Jinja · Agent Runtime + Cloud Run.
 
 ## Canonical external references — check these, don't trust our summaries
 
 Our docs summarise these pages, and **the organisers can update them at any time**. When a question
 touches rules, eligibility, submission requirements or which services are sanctioned, fetch the live
-page rather than relying on `COMPETITION.md` or `COMPETITION.md §12`.
+page rather than relying on `COMPETITION.md`.
 
 | Source | URL | Ours that summarises it |
 |---|---|---|
 | **Rules** | https://agentic-cinema.devpost.com/rules | [COMPETITION.md](COMPETITION.md) |
-| **Resources** | https://agentic-cinema.devpost.com/resources | [COMPETITION.md §12](COMPETITION.md §12) |
+| **Resources** | https://agentic-cinema.devpost.com/resources | [COMPETITION.md](COMPETITION.md) §12 |
 | Overview | https://agentic-cinema.devpost.com/ | [COMPETITION.md](COMPETITION.md) §2 |
 | Forum | https://agentic-cinema.devpost.com/forum_topics | — |
 | Discord | https://discord.gg/7Dqk5ebCD4 | — |
@@ -172,7 +172,7 @@ people each have an AI writing code fast. (Swapping is fine; edit this section i
 - `consentinel/tools/parallel_search.py`
 - `consentinel/tools/fetch_page.py`
 - `consentinel/tools/vision_web_detection.py`
-- Agent Engine deployment
+- Agent Runtime deployment
 
 **Prachit — foundation and app**
 - `consentinel/store/` implementations
@@ -210,7 +210,7 @@ Claude Code sessions read files and cannot see Notion.
 - Metadata in the database, bytes in object storage. Never blobs in SQL
 - Secrets from `.env` locally, Secret Manager in deploy. **The repo is public — never commit a key.**
   If one lands in history, rotate it; deleting it in a later commit does not remove it
-- Prefer a resource listed in [COMPETITION.md §12](COMPETITION.md §12) over rolling your own
+- Prefer a resource listed in [COMPETITION.md](COMPETITION.md) §12 over rolling your own
 - Verify Google API surfaces (ADK, Gemini, Cloud Vision) against current docs before building on
   them — some names in `contracts.py` were written from memory and may have moved
 
@@ -257,7 +257,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] Docs: PRD, technical design, competition requirements, resource map, build spec, team brief,
       architecture diagrams, backlog
 - [x] Google Cloud hackathon credits obtained
-- [ ] Store implementation (SQLite) + seed loader — *Prachit*
+- [x] WU-01 Firestore store, WU-02 seed loader — *Prachit* — real registry seeded
 - [ ] WU-02 seed loader — *Prachit*
 - [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
 - [ ] `parallel_search` via official `parallel-web` SDK + `TextSweep` — *Vedant*
@@ -266,7 +266,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
 - [ ] `DossierWriter` + evidence snapshots — *Vedant*
 - [ ] `ClearancePipeline`, slim — *Prachit*
-- [ ] Agent Engine deploy — *Vedant*
+- [ ] WU-24 four Agent Runtime deployments — *Vedant*
 - [ ] Cloud Run deploy, cold-start tested — *Prachit*
 - [ ] `ImageSweep` (only if ahead of schedule) — *Vedant*
 - [ ] Demo video, Devpost writeup, runtime-evidence screenshots — *both*
@@ -292,7 +292,7 @@ excerpts. It therefore **cannot replace `fetch_page`** and **cannot serve as evi
 `fetch_page` stays. Extract is adopted as an optional **P1** cheap first-pass read during triage,
 with `fetch_page` reserved for candidates escalating to a dossier.
 
-**OQ-2 — closed by decision.** We are not adopting a second partner product for v1. SQLite behind
+**OQ-2 — closed by decision.** We are not adopting a second partner product for v1. Firestore behind
 the `Store` interface; ClickHouse remains a documented post-hackathon path.
 
 **Contract consequence:** `search_queries` takes **2–3 keyword queries of 3–6 words each** per call,

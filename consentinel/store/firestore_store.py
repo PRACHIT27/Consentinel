@@ -41,6 +41,17 @@ from consentinel.store.base import (
 )
 from consentinel.store.codec import coerce_dt, from_doc, to_doc, utcnow
 
+def doc_id_for(record: Any) -> str:
+    """The document id a record is stored under.
+
+    Every record uses its own `id` except `Finding`, which uses `url_hash` so
+    that two documents for one URL are structurally impossible. Anything that
+    needs to address a document directly should ask here rather than reimplement
+    the rule — that is how the two copies drift apart.
+    """
+    return getattr(record, "url_hash", None) or record.id
+
+
 PERFORMERS = "performers"
 CONSENTS = "consents"
 FINDINGS = "findings"
