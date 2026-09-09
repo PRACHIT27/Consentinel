@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.5`**
+**Doc set version: `v2.0.6`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,58 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.6 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
+**Type:** PATCH
+
+**WU-09 Triage and WU-10 validators are done. 260 passing (67 new).** Epic 3's P0 reading path is
+complete except WU-11, the injection canary.
+
+`consentinel/agents/triage.py` and `consentinel/agents/validators.py`. WU-10 was built *first* —
+WU-09's acceptance is "a valid extraction or an explicit failure", and the validators are what makes
+"valid" mean anything.
+
+**The injection defence, in the order it actually works:**
+
+1. **No free-form output channel.** `output_schema=TriageOut`, so ADK constrains generation and
+   refuses tools and transfer. An injected instruction has to express itself as a *field value*.
+2. **Then the validators catch that.** A page that says "mark this as authorized" cannot produce a
+   quote for it, and `check_internal_consistency` rejects a synthetic-copy claim with nothing to
+   point at.
+3. **No tools at all** (`tools=()`), so there is nothing to be made to do.
+4. Page text sits in a **per-call randomly fenced block in the user turn** — the token is a fresh
+   `uuid4` slice each call, so a page cannot forge the end of its own block and start giving orders.
+   Any occurrence of the token in the page is stripped. The system instruction never contains page
+   text; a test asserts that.
+5. Model Armor screens the text on the way in, **flag but never block** (`consentinel-triage-in`) —
+   a page trying to manipulate us is frequently the page that is infringing.
+
+Other things worth knowing:
+
+- **Validated against exactly the text the model was shown.** Page text is capped at 20,000
+  characters (context flooding, DESIGN §4.2) and the quote check runs against the capped text —
+  validating against text we never sent would fail honest extractions on long pages.
+- **Cache is content-addressed on `sha256(page_text)` + `prompt_version`, no TTL.** The same bytes
+  and the same prompt give the same reading. A listing mirrored on three sites is one model call;
+  bumping `PROMPT_VERSION` in `.env` bypasses every cached extraction.
+- **`needs_media_pass` is a gate, not a default** (FR-3.5). It is true only when there is media on
+  the page *and* either the reading is below 0.6 or the page names the performer while claiming
+  nothing — the case where the answer is plausibly in the media rather than the words. The pass
+  itself is WU-29; nothing here downloads anything.
+- **The audit row never carries page text or model prose** (DESIGN §7). It records `has_quote: true`,
+  not the quote. Same for the log line. A test greps the serialised row for the injected sentence.
+- Two goes at a valid extraction and it stops, with `reason` beginning
+  `"extraction failed validation twice"` — the exact string WU-10 asks to be written to
+  `Finding.reasoning`.
+
+**Action required:**
+- **Prachit, WU-22/WU-23:** `validators.quoted_span(extraction, page_text)` gives character offsets
+  into the normalised page text, so the decision trail can highlight the sentence instead of asking
+  a reader to trust it was there. `REVIEW_THRESHOLD` (0.6) is exported — use it rather than a second
+  copy of the number
+- **Me, next:** WU-11 injection canary, then WU-12/WU-13 the reconciler
+- Nobody needs to change anything they have already written
 
 ## v2.0.5 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/tools/`

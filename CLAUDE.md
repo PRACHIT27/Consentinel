@@ -267,7 +267,8 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `QueryPlanner` — *Vedant* (WU-06, 31 tests; 5 locales, 5 languages, deterministic fallback)
 - [x] `TextSweep` — *Vedant* (WU-07, 24 tests; dedupe on `url_hash`, 25-candidate cap)
 - [x] `fetch_page` + `web_risk_check` — *Vedant* (WU-08, 60 tests; SSRF guards, fails closed)
-- [ ] `Triage` + `Reconciler` (deterministic rules, unit-tested) — *Vedant*
+- [x] `Triage` + extraction validators — *Vedant* (WU-09/WU-10, 67 tests; no tools, quote verbatim)
+- [ ] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12, WU-13)
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
 - [ ] `DossierWriter` + evidence snapshots — *Vedant*
