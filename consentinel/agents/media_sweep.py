@@ -164,11 +164,35 @@ class MediaSweep:
     search: Optional[ParallelSearch] = None
     fetcher: MediaFetcher = field(default_factory=MediaFetcher)
     max_downloads: int = 3          # each one is a model call; a sweep is not a crawl
+    max_pages: int = 4              # landing pages opened per locale, to bound the crawl
+    page_fetcher: Optional[Any] = None
     describe: Optional[Any] = None  # injected in tests
 
     def __post_init__(self) -> None:
         if self.modality not in MODALITIES:
             raise ValueError(f"modality must be one of {', '.join(MODALITIES)}")
+        if self.page_fetcher is None:
+            from consentinel.tools.fetch_page import PageFetcher
+            from consentinel.tools.web_risk import WebRiskCheck
+
+            self.page_fetcher = PageFetcher(deps=self.deps, risk=WebRiskCheck(deps=self.deps))
+
+    def _media_on(self, page_url: str, subject_id: str, locale) -> list[str]:
+        """What one landing page points at. Never raises: a page we cannot open
+        contributes nothing, which is different from the sweep failing."""
+        if self.page_fetcher is None:
+            return []
+        try:
+            # The locale is not optional here: `fetch_page` reads
+            # `locale.language` to set Accept-Language, and passing None makes
+            # it fail with an AttributeError that reads like a bug in the page.
+            outcome = self.page_fetcher.fetch_detailed(page_url, locale, subject_id=subject_id)
+        except Exception as exc:                         # noqa: BLE001
+            log.info("could not open %s: %s", page_url, exc)
+            return []
+        if not outcome.ok or outcome.snapshot is None:
+            return []
+        return list(outcome.snapshot.media_refs or [])
 
     def run(self, performer: Performer, locales: Sequence[Locale]) -> MediaSweepReport:
         spec = MODALITIES[self.modality]
@@ -192,12 +216,29 @@ class MediaSweep:
 
             for hit in result.results:
                 report.searched += 1
-                guess = looks_like_media(hit.url)
-                if guess is None or not spec["accepts"].startswith(guess):
+                # A search result is almost never the file itself. The first
+                # live run returned five results per query and zero direct
+                # media links, because an index returns the page that *sells*
+                # the sample, not the sample. So: take the landing page, and
+                # harvest the media it points at. `PageSnapshot.media_refs` has
+                # been in the frozen contract since the start for this, and
+                # `fetch_page` already fills it from img, video, source and
+                # srcset.
+                direct = looks_like_media(hit.url)
+                if direct and spec["accepts"].startswith(direct):
+                    report.candidates += 1
+                    report.results.append(
+                        MediaCandidate(url=hit.url, modality=self.modality, locale=locale))
                     continue
-                report.candidates += 1
-                report.results.append(
-                    MediaCandidate(url=hit.url, modality=self.modality, locale=locale))
+
+                for media_url in self._media_on(hit.url, performer.id, locale):
+                    guess = looks_like_media(media_url)
+                    if guess is None or not spec["accepts"].startswith(guess):
+                        continue
+                    report.candidates += 1
+                    report.results.append(
+                        MediaCandidate(url=media_url, modality=self.modality,
+                                       locale=locale))
 
         # Download and read, up to the budget. Ordered by how much the address
         # looks like a file, which is all the ordering information we have.

@@ -88,7 +88,12 @@ class MediaFetcher:
         turns either into a finding that says we could not look — never into
         silence, and never into a pass.
         """
-        safe_url, _addresses = validate_url(url)
+        # Returns (host, addresses) — not a URL. It is a guard, not a
+        # normaliser, so the request still goes to the original address; the
+        # first version of this passed the bare host to httpx and every
+        # download died with "UnsupportedProtocol".
+        _host, _addresses = validate_url(url)
+        safe_url = url
 
         try:
             with httpx.Client(timeout=self.timeout_s, follow_redirects=True,

@@ -342,3 +342,49 @@ def test_the_walkthrough_hands_over_the_files_it_asks_for(client):
         assert len(r.content) > 1000, name
 
     assert client.get("/demo/samples/../../.env").status_code == 404
+
+
+def test_a_confirmed_slip_round_trips_through_the_form(client, monkeypatch):
+    """Render the confirm page, submit exactly what it contains, and save.
+
+    Every earlier test posted `citations_json` directly and so never touched
+    the template that produces it — which is how a broken hidden field reached
+    production. `tojson` output is marked safe, so in a double-quoted attribute
+    the value ended at the first quote inside the JSON, the browser submitted
+    `[{`, and the save died with a decode error two characters in.
+    """
+    import html as htmllib
+    import re
+
+    from consentinel.agents.consent_ingest import ConsentDraft
+    from consentinel.harness.result import HarnessResult
+
+    draft = ConsentDraft(
+        performer_name="Mira Vance", licensee="Halcyon Pictures",
+        permitted_uses=["voice_synth"], territories=["US", "CA"],
+        valid_from="2026-01-01", valid_to="2028-12-31",
+        compensation_trigger="per-title fee",
+        citations=[{"field": "performer_name",
+                    "quote": 'She is called "Mira Vance" throughout.', "page": 1}],
+        page_count=6,
+    )
+    monkeypatch.setattr(webapp, "extract_consent",
+                        lambda *a, **kw: HarnessResult(ok=True, value=draft, duration_s=1.0))
+
+    page = client.post("/consents/extract",
+                       files={"contract": ("c.pdf", b"%PDF-1.4", "application/pdf")}).text
+
+    match = re.search(r"name=\"citations_json\" value='([^']*)'", page)
+    assert match, "the hidden field must survive rendering"
+    submitted = htmllib.unescape(match.group(1))
+
+    r = client.post("/consents/save", data={
+        "performer_name": "Mira Vance", "licensee": "Halcyon Pictures",
+        "permitted_uses": ["voice_synth"], "territories": "US, CA",
+        "valid_from": "2026-01-01", "valid_to": "2028-12-31",
+        "compensation_trigger": "per-title fee",
+        "citations_json": submitted,
+    }, follow_redirects=False)
+
+    assert r.status_code == 303, "the exact bytes the page produced must save"
+    assert client.store.saved[-1].clause_citations[0]["page"] == 1

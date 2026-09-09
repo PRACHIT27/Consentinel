@@ -31,7 +31,15 @@
 
   <form method="post" action="/consents/save">
     <input type="hidden" name="k" value="{{ k }}">
-    <input type="hidden" name="citations_json" value="{{ draft.citations | tojson }}">
+    {#
+      Single quotes, and it matters. `tojson` marks its output safe, so
+      autoescaping leaves the double quotes inside the JSON alone — in a
+      double-quoted attribute the value ends at the first one, the browser
+      submits `[{`, and the save fails with a JSON decode error two characters
+      in. `tojson` escapes single quotes as ', so a single-quoted
+      attribute survives.
+    #}
+    <input type="hidden" name="citations_json" value='{{ draft.citations | tojson }}'>
     <input type="hidden" name="source_doc_ref" value="{{ draft.source_doc_ref or '' }}">
 
     <div class="panel">
