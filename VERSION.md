@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.3.0`**
+**Doc set version: `v2.4.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,39 @@ commit.
 # Log
 
 Newest first.
+
+## v2.4.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `web/` upload and confirm screens
+**Type:** MINOR
+
+**The contract reader now has a way in from the UI.** Upload a PDF, see what Gemini read with every
+quote beside the field it supports, correct anything wrong, then save. Verified end to end against
+the real contract: performer, licensee, US and CA, the 2026-2028 term, the payment trigger, 6 pages,
+8 quotes, `voice_synth` and `archival_reuse` ticked and `face_replace` correctly left unticked. 80
+tests.
+
+**Actions are now gated; reads are not.** `web/security.py`. The three screens stay public because a
+judge has to be able to open the URL, but reading a contract is a Gemini call and a sweep is a
+Gemini call plus a Parallel call per query. On a public address with no gate a crawler can drain the
+quota we need for the demo. The key travels as `?k=` and as a hidden form field. It is a shared
+secret, not a login - it stops casual and accidental use, and should not be mistaken for identity.
+
+**Two parts of WU-23 were deliberately not built**, because both would have been empty shells:
+- the decision trail needs audit rows, and WU-18 has not been built, so the seeded findings have none
+- the case file needs WU-16, which is Vedant's and not started
+The clearance board part already existed on the `/clearance` screen.
+
+**Known cosmetic point, left alone on purpose:** the citation shown is the model's transcription
+rather than the document's own characters - Gemini returns curly quotes where the page has straight
+ones. It renders correctly in a browser and the text is verbatim-equivalent. Snapping each quote
+back to the page's exact bytes needs a normalised-to-original index map, which is not worth the
+hours today.
+
+**Action required:**
+- Set `CONSENTINEL_ACTION_TOKEN` on the Cloud Run service before the demo, or the upload screen is
+  open to the internet
+- Vedant: `agents/common/gemini.py` has `generate_json`. Use it rather than building a client - and
+  note the client must be held in a module global or it closes mid-request
 
 ## v2.3.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
