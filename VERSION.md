@@ -107,6 +107,43 @@ commit.
 
 Newest first.
 
+## v2.2.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/agents/consent_ingest.py`, `tools/make_contract_pdf.py`
+**Type:** MINOR
+
+**WU-03 is done. Gemini is now genuinely in the product. 78 tests passing.**
+
+Reading the demo contract: performer, licensee, US and CA, 2026-01-01 to 2028-12-31, the
+per-title payment trigger, and eight citations - each one checked verbatim against the page it
+claims. First attempt, no repair, 12.8 seconds.
+
+**The result that matters:** it granted `voice_synth` and `archival_reuse` and did **not** grant
+`face_replace`, because clause 10(a) withholds visual likeness. If it had read that withholding as
+a grant, the blocked clip in the clearance demo would turn green and the whole point would collapse.
+There is a live test asserting exactly that.
+
+**Two real findings while building it**
+
+- **A model re-typesets punctuation when it copies a sentence.** Gemini returned curly quotes for a
+  page that renders them straight, so the verbatim check rejected a citation that was in fact a
+  faithful copy - twice, including the repair attempt. `_norm` now folds quote and dash styling
+  alongside whitespace. Both are how characters are *drawn*, not what they *say*. Nothing looser is
+  tolerated, and a fabricated sentence still cannot match.
+- The contract PDF used HTML curly-quote entities, which extracted as replacement characters and
+  would have rendered as `?Territory?` on screen. Switched to `&quot;`.
+
+**Design notes**
+- Uncited fields are **dropped**, not kept. A permission record nobody can check is the thing this
+  step exists to prevent.
+- Nothing is written to the database. It returns a draft for a person to confirm, because a wrong
+  permission slip silently poisons every later answer.
+- A PDF with no readable text fails to `unverified` and says OCR is needed, rather than returning an
+  empty but successful record.
+
+**Action required:**
+- Prachit: WU-23 needs an upload form and a confirm screen for this draft. Until then the extractor
+  has no way in from the UI
+
 ## v2.1.1 - 2026-09-08 - Prachit (with Claude)
 **Files:** `notion/stories.csv`, `notion/tasks.csv`
 **Type:** PATCH
