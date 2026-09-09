@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.0.0`**
+**Doc set version: `v3.1.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,50 @@ commit.
 
 Newest first.
 
+## v3.1.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/obs/`
+**Type:** MINOR
+
+**WU-30 is done. Epic 8 closed. 119 tests.** All three signals reach agents through the harness, so
+an agent author gets them without writing a line.
+
+**Logs.** One JSON object per line on stdout, which Cloud Run turns into an indexed Cloud Logging
+entry with no client library and no credentials. Lines carry the trace id, which is what makes a log
+line clickable from a trace in the console.
+
+**The rule that matters: page content never goes in a log.** Not the text, not a quote, not the
+model's answer about it. It is attacker-controlled, it may carry personal data, and logs are
+retained and widely readable. `NEVER_LOG` holds the field names that are refused - `text`,
+`page_text`, `quote`, `evidence_quote`, `prompt`, `transcript`, `draft_notice`, `reasoning` and
+more - and each is replaced by a description: byte count and a short hash. That is enough to tell
+two pages apart and spot an empty one, without ever storing what they said. Nested fields are
+stripped too.
+
+**Metrics as log lines, not time series - a deliberate trade.** Custom time series need a metric
+descriptor each, resource labels, and a write quota that rejects more than one point per series per
+interval, which a sweep hitting the same counter repeatedly would trip. Log-based metrics are a
+first-class Cloud Monitoring feature: emit a structured line, define the aggregation once. Every
+line carries `metric`, `kind`, `value` and its labels. A mistyped metric name logs a warning rather
+than silently never appearing on a dashboard.
+
+The two worth showing: `extraction.validation_failures{reason}` is the guardrails' own telemetry -
+non-zero means the model tried to fabricate a citation and was caught - and
+`model_armor.detections{type}`.
+
+**Traces.** One per sweep, with a span for the sweep, each agent, each tool and each candidate.
+Attributes set *during* a call are kept, because the harness fills in the verdict and cache age
+mid-span. `tracer_for()` picks Cloud Trace when a project is configured and an in-memory recorder
+otherwise, so a laptop and a test need no credentials and deploy needs no flag. The in-memory one
+also prints the span tree, which is how you notice triage ran nine times when you expected four.
+
+**Not yet verified end to end:** a test export flushed to Cloud Trace without error, but the spans
+were not visible through the trace API within ten minutes. Ingestion lag is the likely cause and a
+background check is running. Treat "traces appear in the console" as unconfirmed until someone sees
+one.
+
+**Action required:**
+- Vedant: pass `tracer=tracer_for()` and `metrics=Metrics(JsonLogger())` in `HarnessDeps`. Do not
+  log page text - use the field names in `NEVER_LOG` and it is handled for you
 ## v3.0.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `consentinel/store/base.py` (bug fix), plus `consentinel/cache/` and `infra/firestore/`
 **Type:** MAJOR - a frozen-contract file changed, though the interface did not

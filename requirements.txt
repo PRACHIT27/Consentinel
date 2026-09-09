@@ -14,6 +14,11 @@ google-cloud-storage           # immutable evidence snapshots
 google-cloud-firestore     # the registry, findings and audit trail
 google-cloud-secret-manager    # secrets in deploy (resources page, Phase 5)
 
+# Tracing. Cloud Run propagates a trace header, so a span joins the request's
+# trace rather than starting a new one.
+opentelemetry-sdk
+opentelemetry-exporter-gcp-trace
+
 # Web app (hosted URL for the submission)
 fastapi
 uvicorn[standard]

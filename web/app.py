@@ -35,6 +35,7 @@ from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_
 from consentinel.agents.consent_ingest import PROMPT_VERSION
 from consentinel.audit import FirestoreAudit
 from consentinel.cache import FirestoreCache
+from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.harness.ports import HarnessDeps
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
@@ -76,6 +77,13 @@ def set_store(store: Store) -> None:
 
 _audit: Optional[FirestoreAudit] = None
 _cache: Optional[FirestoreCache] = None
+
+# One logger, one metrics sink, one tracer for the process. The tracer picks
+# Cloud Trace when a project is configured and an in-memory one otherwise, so a
+# laptop needs no credentials and deploy needs no flag.
+log = JsonLogger(service="consentinel-web")
+metrics = Metrics(log)
+tracer = tracer_for()
 
 
 def get_cache() -> FirestoreCache:
@@ -267,13 +275,21 @@ async def consent_extract(
             deps=HarnessDeps(
                 audit=get_audit(),
                 cache=get_cache(),
+                tracer=tracer,
+                metrics=metrics,
                 prompt_version=PROMPT_VERSION,
             ),
         )
     finally:
         tmp_path.unlink(missing_ok=True)
 
+    trace_id, span_id = tracer.current_ids()
     if not result.ok:
+        log.warning("could not read a contract",
+                    filename=contract.filename, fail_state=enum_value(result.fail_state),
+                    reason=result.reason, trace_id=trace_id, span_id=span_id)
+        metrics.counter("extraction.validation_failures",
+                        reason=enum_value(result.fail_state) or "unknown")
         return templates.TemplateResponse(
             request,
             "consent_new.html",
@@ -285,6 +301,17 @@ async def consent_extract(
             },
             status_code=422,
         )
+
+    log.info("read a contract",
+             filename=contract.filename, pages=result.value.page_count,
+             citations=len(result.value.citations), dropped=len(result.value.dropped),
+             from_cache=result.from_cache, cache_age_s=result.cache_age_s,
+             duration_s=round(result.duration_s, 2),
+             injection_suspected=result.injection_suspected,
+             trace_id=trace_id, span_id=span_id)
+    if result.value.dropped:
+        for d in result.value.dropped:
+            metrics.counter("extraction.validation_failures", reason=d["why"])
 
     return templates.TemplateResponse(
         request,
