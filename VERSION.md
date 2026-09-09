@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.2`**
+**Doc set version: `v3.2.3`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,29 @@ commit.
 # Log
 
 Newest first.
+
+## v3.2.3 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` Status
+**Type:** PATCH - two status lines that were telling the next session to do finished work
+
+**Model Armor is wired up. Do not wire it again.** The Status entry said *"the app must pass
+`armor=ModelArmor()` into `HarnessDeps` - until it does, screening silently no-ops"*. It does now
+(`web/app.py`, `get_armor()`), and the templates resolve live against `consentinel/us-central1`.
+
+Wiring it exposed a name mismatch worth knowing about if you add an agent: `consent_ingest` asked
+for `consentinel-ingest`, and the template the infra script creates is `consentinel-ingest-in`. A
+wrong name does not raise - inbound screens resolve `armor_unavailable` and carry on, so the whole
+feature is off on that path with one warning per process as the only sign. **`model_armor.py` owns
+the three names as constants (`TRIAGE_IN`, `INGEST_IN`, `NOTICE_OUT`); import them rather than
+retyping.** `tests/test_armor_wiring.py` now fails if an agent names a template the infra script
+does not create, or vice versa.
+
+**WU-37 runtime evidence is in the repo**, at `evidence/published/` - 8 live Parallel calls with
+`cache=miss` and their real `search_id`s, plus 8 `cache=hit` proving DEMO_MODE. Generated from
+`evidence/runtime/` by `tools/redact_evidence.py`, which pseudonymises the seventeen real hosts the
+sweep read. `evidence/runtime/` stays gitignored and must never be un-ignored. Note `.gitignore`
+needed `evidence/*` rather than `evidence/`, because git does not descend into an ignored directory
+and the negation was never reached.
 
 ## v3.2.2 - 2026-09-09 - Vedant (with Claude)
 **Files:** `DESIGN.md` Part III §3
