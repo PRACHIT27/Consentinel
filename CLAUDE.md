@@ -275,7 +275,10 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `adversarial_injection` + `verdict_matrix` evalsets, running in CI — *Vedant* (WU-31)
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
-- [ ] `DossierWriter` + evidence snapshots — *Vedant*
+- [x] `DossierWriter` + snapshot capture — *Vedant* (WU-16 + WU-15's capture half, 35 tests;
+      grounded drafts, no send path anywhere). **`consentinel/evidence/store.py` is still
+      Prachit's half of WU-15** — a stopgap `LocalSnapshotStore` lives in `agents/snapshot.py`
+      until it lands
 - [ ] `ClearancePipeline`, slim — *Prachit*
 - [ ] WU-24 four Agent Runtime deployments — *Vedant*
 - [ ] Cloud Run deploy, cold-start tested — *Prachit*

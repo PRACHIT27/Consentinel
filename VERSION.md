@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.10`**
+**Doc set version: `v2.0.11`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,73 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.11 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
+**Type:** PATCH
+
+**WU-16 and WU-15's capture half are done. 457 passing (35 new).** Epic 5 has enforcement output
+end to end: snapshot → bundle → grounded draft.
+
+`consentinel/agents/snapshot.py` and `consentinel/agents/dossier_writer.py`.
+
+### The case file names its clause (FR-5's acceptance)
+
+`build_bundle` looks the clause up from **the consent the verdict actually named** — not from the
+performer's contracts generally — and carries its text, document and page. A notice that says "you
+are outside the terms" without pointing at the sentence is one the recipient can dismiss. If the
+verdict names a grant we were not handed, the bundle says `licensee: unknown` rather than inventing
+a clause.
+
+### The grounding check is the part worth reviewing
+
+A generated legal-ish letter is exactly where a model invents a statute, a deadline or a URL — and a
+reader treats both as verified. So `ungrounded_facts()` compares the draft against the bundle and
+rejects any URL or quoted span that is not in it: reject, regenerate once with the offending fact
+named, then refuse the draft. **The model phrases the letter; it does not add facts.** Deliberately
+narrow — it checks links and quotations, not general truth, and does not pretend otherwise.
+
+Two refusals with no model call at all: an `ambiguous` finding (drafting a takedown for a finding we
+could not judge would put the doubt in an envelope) and a bundle with no quote to cite.
+
+### No send path, asserted repo-wide
+
+Hard rule 6 and FR-5.5. `tests/test_dossier_writer.py` walks **every `.py` file in the repo** for
+`smtplib`, `sendgrid`, `send_email`, `twilio`, `webhook_url` and friends, and checks both
+requirements files for a mail or messaging client. "We did not add an email client" has to stay true
+after the next twenty commits, so it is a test rather than a note. `Dossier.sendable` is a property
+that returns `False` and always will, so a UI asking "can I send this?" gets a straight no from the
+domain object rather than from a missing button.
+
+`build_instruction()` forbids legal conclusions, legal advice, deadlines and threats (NG-4) — we
+state the evidence and the rule mismatch and stop. Temperature 0.3, the one place CLAUDE.md permits
+sampling, because a notice that reads like a form letter gets ignored. Model Armor screens the
+output **inspect-and-block** (`consentinel-notice-out`), the asymmetric twin of triage's
+inspect-only template.
+
+### Snapshot capture (WU-15, my half)
+
+- Text plus a `metadata.json` carrying **sha256 of everything**: a URI proves where bytes are, a
+  hash proves they have not changed since discovery.
+- **Text-only is a shipped answer, not a placeholder.** WU-15 permits it if headless Chromium
+  becomes a rabbit hole (OQ-4 is still open); `capture(screenshot=...)` takes a callable, so the
+  answer plugs in without touching anything else. A screenshot that throws does not lose the text.
+- **Writes refuse to overwrite.** An evidence object that can be replaced is not evidence; a second
+  capture gets a new timestamped directory. No `delete`, here or on the ABC.
+- **The unlawful-material rule is implemented:** `capture(unlawful=True)` writes *nothing* — no
+  text, no screenshot — and records the address, a hash, the classification and the time, with
+  `status=ESCALATED_UNLAWFUL`. A test asserts the directory is empty afterwards.
+
+**Action required:**
+- **Prachit:** `consentinel/evidence/store.py` is still your half of WU-15. Until it lands there is
+  a stopgap `LocalSnapshotStore` **inside `agents/snapshot.py`** — deliberately not in
+  `consentinel/evidence/`, so it cannot collide with your file. Delete it when yours arrives;
+  `SnapshotCapture` takes any `EvidenceStore`
+- **Prachit, WU-23:** `Dossier.as_dict()` gives the case-file view everything except the draft text,
+  and `bundle.clause.describe()` renders as "Aurora Studios (c_aurora), …pdf p.2". There is no send
+  action to render, and there must not be one
+- **Swara:** the draft notice is copy-out only. If the video shows a "send" button we have broken our
+  own headline claim
 
 ## v2.0.10 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus `evalsets/` and `.github/workflows/ci.yml`
