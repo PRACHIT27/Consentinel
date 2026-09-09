@@ -269,7 +269,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `fetch_page` + `web_risk_check` — *Vedant* (WU-08, 60 tests; SSRF guards, fails closed)
 - [x] `Triage` + extraction validators — *Vedant* (WU-09/WU-10, 67 tests; no tools, quote verbatim)
 - [x] Injection canary + the planted demo page — *Vedant* (WU-11, 43 tests)
-- [ ] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12, WU-13)
+- [x] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12/WU-13, 50 tests; no model)
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
 - [ ] `DossierWriter` + evidence snapshots — *Vedant*

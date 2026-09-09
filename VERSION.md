@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.7`**
+**Doc set version: `v2.0.8`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,63 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.8 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
+**Type:** PATCH — but there are **three judgement calls below that someone should check**
+
+**WU-12 and WU-13 are done. Epic 4's rule engine is complete: 353 passing (50 new).**
+
+`consentinel/agents/reconciler.py` implements FR-4.2's chain exactly, and `tests/test_reconciler.py`
+covers every branch including the territory case the ticket names — a grant for US and CA against an
+offering targeting US *and* BR is unauthorised, and the reasoning says BR.
+
+**No model, and it is enforced by a test** that parses the module's AST and asserts nothing from
+`google.genai`, `google.adk`, `vertexai`, `openai` or `anthropic` is imported and nothing named
+`generate_content` is called. (My first version grepped the source text and failed on a *comment*
+saying this module is not an `LlmAgent` — a test that could not tell code from prose about code.)
+
+**No page text can reach it**, also enforced: a test asserts `Observation.__dataclass_fields__` is
+exactly the six structured fields, so `page_text` cannot quietly appear later. **No cache**: a test
+passes in a cache that records every call and asserts it was never touched (hard rule 7 — grants
+expire and get revoked, so a stored verdict keeps asserting yesterday's answer).
+
+**Three judgement calls the flow chart does not cover.** Each resolves toward doubt, and each is one
+line to change if the team reads it differently:
+
+1. **`ARCHIVAL_REUSE` authorises nothing.** Permission to reuse existing footage is not permission
+   to synthesise a new performance, and conflating them would authorise the exact thing we exist to
+   catch. `_MODALITY_PERMISSIONS` is the one place to change it. `FULL_REPLICA` covers all three
+   modalities; `VOICE_SYNTH` covers voice; `FACE_REPLACE` covers face.
+2. **Unknown target territory → `ambiguous`, not `authorized`.** An empty set is vacuously a subset
+   of any grant, so "we could not tell where this is aimed" would otherwise pass as covered. A
+   worldwide grant still resolves, because scope cannot be breached when there is no scope limit.
+3. **Unknown actor → `ambiguous`.** Not knowing who is selling is not the same as knowing it is a
+   third party. This only arises when a use otherwise falls *inside* a grant.
+
+Also worth knowing:
+
+- **Several grants are the normal case.** A use is authorised if *any* grant covers it; when none
+  does, the explanation names the grant that came closest, because "no grant covers this" is useless
+  to a human holding four contracts. `grants_considered` says how many were weighed.
+- **Low confidence blocks `unauthorized` too**, not just `authorized`. A weak reading cannot assert
+  an infringement any more than it can assert permission (DESIGN §3 L5).
+- **FR-4.4's "reject a verdict with no citation" is implemented as "never storable"**:
+  `evaluate()` resolves an uncitable decisive verdict to `ambiguous` with check `no_citation`, so one
+  quoteless page degrades itself rather than the sweep, while `assert_citable()` /
+  `to_finding_fields()` raise `MissingCitation` at the storage boundary. `strict_citation=True`
+  raises during evaluation for callers who want that. `ambiguous` is exempt — it asserts nothing.
+- Licensee matching forgives punctuation and company suffixes: "Aurora Studios" and "Aurora Studios,
+  LLC" are the same party, "Aurora Films" is not.
+- The audit row records the check, both consent ids, the territories outside the grant, and
+  `has_citation` — never the quote text, and `model: null` because there is no model here.
+
+**Action required:**
+- **Someone check the three calls above**, particularly `ARCHIVAL_REUSE`
+- **Prachit, WU-22/WU-23:** `VerdictResult.to_finding_fields()` returns the verdict, matched consent
+  id, reasoning *and* the quote in one dict, and raises rather than letting a decisive verdict be
+  stored uncited. `result.check` is a stable constant — badge from it rather than parsing `reason`
+- OQ-6 (the `injection_suspected` field) is still open
 
 ## v2.0.7 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status, new OQ-6), plus new code and two demo fixtures
