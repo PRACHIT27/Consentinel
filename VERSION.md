@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.0`**
+**Doc set version: `v2.3.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,73 @@ commit.
 # Log
 
 Newest first.
+
+## v2.3.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
+**Type:** MINOR
+
+**Vedant: follow this layout for your agents.** `consent_ingest` was one 350-line file holding the
+prompt, the schema, the guardrails, the policy and the logic. Split into the shape GridMind uses,
+because six more agents are about to be written and the pattern should be right before they are.
+
+```
+agents/common/gemini.py     the only place we call a model
+agents/<agent>/agent.py     the steps and the HarnessPolicy
+agents/<agent>/guardrail.py what can reject an answer
+agents/<agent>/instructions.py  the prompt, the schema, PROMPT_VERSION
+```
+
+- Prompts change far more often than code, so a wording tweak is now a one-file diff, and
+  `PROMPT_VERSION` sits beside the words it versions.
+- `guardrail.py` is the security surface of a step. A reviewer asking what stops a fabricated
+  citation should find one short file.
+- One `generate_json` in `agents/common/gemini.py` means the untrusted-content fence is drawn once
+  rather than in every agent. No free-text variant exists on purpose.
+- The package `__init__` re-exports everything, so callers and tests were unaffected.
+
+**Bug found and fixed during the move:** building the Gemini client inline as
+`_client().models.generate_content(...)` left nothing holding a reference, and it was closed while
+the request was in flight - "Cannot send a request, as the client has been closed." It is now a
+module-level cached client, which also stops auth being rebuilt on every call.
+
+78 tests pass.
+
+## v2.2.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/agents/consent_ingest.py`, `tools/make_contract_pdf.py`
+**Type:** MINOR
+
+**WU-03 is done. Gemini is now genuinely in the product. 78 tests passing.**
+
+Reading the demo contract: performer, licensee, US and CA, 2026-01-01 to 2028-12-31, the
+per-title payment trigger, and eight citations - each one checked verbatim against the page it
+claims. First attempt, no repair, 12.8 seconds.
+
+**The result that matters:** it granted `voice_synth` and `archival_reuse` and did **not** grant
+`face_replace`, because clause 10(a) withholds visual likeness. If it had read that withholding as
+a grant, the blocked clip in the clearance demo would turn green and the whole point would collapse.
+There is a live test asserting exactly that.
+
+**Two real findings while building it**
+
+- **A model re-typesets punctuation when it copies a sentence.** Gemini returned curly quotes for a
+  page that renders them straight, so the verbatim check rejected a citation that was in fact a
+  faithful copy - twice, including the repair attempt. `_norm` now folds quote and dash styling
+  alongside whitespace. Both are how characters are *drawn*, not what they *say*. Nothing looser is
+  tolerated, and a fabricated sentence still cannot match.
+- The contract PDF used HTML curly-quote entities, which extracted as replacement characters and
+  would have rendered as `?Territory?` on screen. Switched to `&quot;`.
+
+**Design notes**
+- Uncited fields are **dropped**, not kept. A permission record nobody can check is the thing this
+  step exists to prevent.
+- Nothing is written to the database. It returns a draft for a person to confirm, because a wrong
+  permission slip silently poisons every later answer.
+- A PDF with no readable text fails to `unverified` and says OCR is needed, rather than returning an
+  empty but successful record.
+
+**Action required:**
+- Prachit: WU-23 needs an upload form and a confirm screen for this draft. Until then the extractor
+  has no way in from the UI
 
 ## v2.1.1 - 2026-09-08 - Prachit (with Claude)
 **Files:** `notion/stories.csv`, `notion/tasks.csv`
