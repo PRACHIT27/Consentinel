@@ -25,9 +25,10 @@
 
   <div class="panel" style="max-width:none;">
     <h3>The files</h3>
-    <p class="desc">Download, then upload them back. The performer, the studio and the seller do
+    <p class="desc">Download, then upload them back. The performers, the studios and the seller do
        not exist; the voice and the face were generated with Gemini, so no real person's likeness
-       appears anywhere.</p>
+       appears anywhere. The three agreements are worth doing in order &mdash; the last one is the
+       case the whole registry rests on.</p>
     <div class="register">
       {% for name, entry in samples.items() %}
         <div class="reg-row" style="grid-template-columns:1.1fr 2.4fr 0.7fr; cursor:default;">
@@ -48,6 +49,13 @@
        sentence it took each one from; any field whose quote is not found on the page it claims is
        dropped rather than guessed. You confirm before it is saved, because a wrong slip quietly
        makes every later answer wrong.</p>
+    <p class="hint" style="margin-top:10px;">Then do the other two, because they are the cases that
+       catch people out. <span class="mono">contract-expired.pdf</span> looks like an ordinary live
+       grant and lands in the registry marked <em>expired</em> &mdash; its term ran out on 1
+       September. <span class="mono">contract-withholding.pdf</span> hides a clause forbidding
+       synthetic likeness inside a paragraph of things the producer may do; the reading records
+       voice and archival reuse and refuses the likeness, which is the distinction the whole
+       registry rests on.</p>
     {% if can_act %}<a class="btn" href="/consents/new{{ q }}">Start here</a>{% endif %}
   </div>
 

@@ -799,6 +799,17 @@ SAMPLE_FILES = {
         "A six-page performer agreement. Clause 9 grants synthetic voice in the "
         "US and Canada; clause 10(a) withholds visual likeness. Upload it on "
         "Permission Registry."),
+    "contract-expired.pdf": (
+        "docs/theo_marchand_meridian.pdf", "application/pdf",
+        "Voice and likeness, France and Belgium — and an eighteen-month term "
+        "that ran out on 1 September 2026. It reads like an ordinary live "
+        "grant; the registry marks it expired the moment it is saved."),
+    "contract-withholding.pdf": (
+        "docs/ines_cabral_cascade.pdf", "application/pdf",
+        "The one worth watching. A clause forbidding synthetic visual likeness "
+        "sits in the middle of a paragraph of things the producer may do — "
+        "which is where it hides in a real document. A hurried reader turns it "
+        "into a grant; the extraction records voice and archival reuse only."),
     "voice-clip.wav": (
         "media/NF_1042_ADR_v03.wav", "audio/wav",
         "A generated ADR line. Check it as a synthetic voice for US release and "

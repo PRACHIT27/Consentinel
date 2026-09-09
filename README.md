@@ -124,6 +124,7 @@ the demo runs on.
 | # | Step | Where | What to expect |
 |---|---|---|---|
 | 1 | **Read a contract** | Registry → *Add permission slip* → `contract.pdf` | Six fields filled in, each with the sentence it came from and a page number. Any field whose quote is not really on that page is dropped, not guessed |
+| 1b | **The two harder contracts** | same screen | `contract-expired.pdf` reads like a live grant and lands marked **expired** — its term ran out on 1 September. `contract-withholding.pdf` hides "Producer shall not generate a synthetic visual likeness" inside a paragraph of grants; the reading records voice and archival reuse and refuses the likeness |
 | 2 | **Sweep the web** | Enforcement Sweep → *Run sweep now* | Gemini writes phrases in five languages, Parallel searches, pages are fetched and read. Takes about a minute the first time |
 | 3 | **Open a case file** | any finding → *Open the case file* | What was found, the clause it breaches, the copy of the page, and a draft notice. There is no send button |
 | 4 | **Check your own clip** | Clearance Check → `voice-clip.wav` | Submit it as a *voice* for `US` and it clears. Submit the same file for `BR` and it is blocked — the grant is scoped to the US and Canada. Try `face-still.jpg` as a *face*: blocked, the contract withholds visual likeness |

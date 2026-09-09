@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.5.0`**
+**Doc set version: `v3.5.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,23 @@ commit.
 # Log
 
 Newest first.
+
+## v3.5.1 - 2026-09-09 - Prachit (with Claude)
+**Files:** `README.md` (step 1b in the walkthrough)
+**Type:** PATCH - two more sample files; nothing anyone is building against changed
+
+`tools/make_sample_contracts.py` generates two agreements harder than the worked example, and both
+are downloadable from `/try`:
+
+- **`contract-expired.pdf`** reads like an ordinary live grant and lands in the registry marked
+  expired - its eighteen-month term ran out on 1 September 2026.
+- **`contract-withholding.pdf`** hides *"Producer shall not generate ... a synthetic visual
+  likeness"* inside a paragraph of things the producer may do, rather than in a tidy reserved-rights
+  clause. Run through the real extractor it records `voice_synth` and `archival_reuse` and refuses
+  `face_replace`, which is the distinction the whole registry rests on.
+
+Useful if you are writing about the ingest agent: this is the first evidence of the negative-clause
+rule holding against a document rather than against a test fixture.
 
 ## v3.5.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `README.md` (a walkthrough), `CLAUDE.md` Status
