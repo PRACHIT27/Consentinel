@@ -1,0 +1,83 @@
+2026-09-09 19:52:13,705 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=pt-BR location=br cache=hit cache_age_s=1869 results=3 latency_ms=3703 attempts=0 search_id=search_adda7cb9388913a58d7f2a0083ddbc4b session_id=sweep_6ca76c53b788 queries=["Mira Vance clone de voz IA", "Mira Vance voz sintética", "M. Vance clone de voz IA"]
+2026-09-09 19:52:14,997 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=ja-JP location=jp cache=hit cache_age_s=1869 results=3 latency_ms=3641 attempts=0 search_id=search_26e32f2eb4244c322197233ca8fea9a7 session_id=sweep_6ca76c53b788 queries=["Mira Vance AI音声クローン", "Mira Vance 合成音声", "M. Vance AI音声クローン"]
+2026-09-09 19:52:15,003 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=en-US location=us cache=hit cache_age_s=1869 results=3 latency_ms=3672 attempts=0 search_id=search_6687783d8d0632b1c4bbf81607a9aeca session_id=sweep_6ca76c53b788 queries=["Mira Vance AI voice clone", "Mira Vance synthetic voice", "M. Vance AI voice clone"]
+2026-09-09 19:52:15,012 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=es-MX location=mx cache=hit cache_age_s=1869 results=3 latency_ms=3688 attempts=0 search_id=search_0493bfc11b2f42bc6928051e893af23d session_id=sweep_6ca76c53b788 queries=["Mira Vance clon de voz IA", "Mira Vance voz sintética", "M. Vance clon de voz IA"]
+2026-09-09 19:52:15,968 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=hi-IN location=in cache=hit cache_age_s=1869 results=3 latency_ms=641 attempts=0 search_id=search_1e5d2d6fbd2b3a6111a655b0b90852cc session_id=sweep_6ca76c53b788 queries=["Mira Vance एआई आवाज क्लोन", "Mira Vance सिंथेटिक आवाज", "M. Vance एआई आवाज क्लोन"]
+2026-09-09 19:52:18,275 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=en-CA location=ca cache=hit cache_age_s=1870 results=3 latency_ms=344 attempts=0 search_id=search_2c28fcf60c2027b53aa003c7af957919 session_id=sweep_6ca76c53b788 queries=["Mira Vance AI voice clone", "Mira Vance synthetic voice", "M. Vance AI voice clone"]
+2026-09-09 19:52:18,359 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=pt-BR location=br cache=hit cache_age_s=1870 results=3 latency_ms=1562 attempts=0 search_id=search_726d52646d9bb9d0b21e90bbe45a63af session_id=sweep_6ca76c53b788 queries=["Mira Vance avatar IA", "Mira Vance anúncio deepfake", "M. Vance avatar IA"]
+2026-09-09 19:52:18,536 INFO consentinel.parallel_search parallel_search sdk=parallel-web api=search mode=basic locale=en-US location=us cache=hit cache_age_s=1869 results=3 latency_ms=1610 attempts=0 search_id=search_5d3168e73f47f85e8e81ff143ecf6b32 session_id=sweep_6ca76c53b788 queries=["Mira Vance AI avatar", "Mira Vance deepfake ad", "M. Vance AI avatar"]
+2026-09-09 19:52:19,950 INFO consentinel.text_sweep TextSweep sweep=sweep_e3bf5f3305e2 performer=perf_mira_vance batches=8/8 raw=24 findings=21 duplicates=3 capped=False cache_hits=8 degraded=False duration_s=10.98
+2026-09-09 19:52:21,839 INFO consentinel.web_risk web_risk_check url=https://host-072525.redacted/p-968141 safe=True threats=[] cache=hit
+2026-09-09 19:52:23,883 INFO consentinel.fetch_page fetch_page url=https://host-072525.redacted/p-968141 locale=en-US hops=0 status=- chars=17373 media=59 cache=hit latency_ms=438
+2026-09-09 19:52:25,776 INFO consentinel.triage Triage url=https://host-072525.redacted/p-968141 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:52:26,110 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:28,073 INFO consentinel.web_risk web_risk_check url=https://host-552ccb.redacted/p-573486 safe=True threats=[] cache=hit
+2026-09-09 19:52:29,006 INFO consentinel.fetch_page fetch_page url=https://host-552ccb.redacted/p-573486 locale=en-US hops=0 status=- chars=2308 media=35 cache=hit latency_ms=313
+2026-09-09 19:52:30,288 INFO consentinel.triage Triage url=https://host-552ccb.redacted/p-573486 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=657
+2026-09-09 19:52:30,613 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:31,502 INFO consentinel.web_risk web_risk_check url=https://host-207ade.redacted/p-1c90b3 safe=True threats=[] cache=hit
+2026-09-09 19:52:33,706 WARNING consentinel.fetch_page fetch_page url=https://host-207ade.redacted/p-1c90b3 locale=en-US hops=1 status=404 chars=0 media=0 cache=miss latency_ms=1594 FAILED reason='FetchFailed: fetch_page: HTTP 404 for https://host-207ade.redacted/p-1c90b3'
+2026-09-09 19:52:34,602 INFO consentinel.web_risk web_risk_check url=https://host-edabf7.redacted/p-c99e19 safe=True threats=[] cache=hit
+2026-09-09 19:52:35,907 INFO consentinel.fetch_page fetch_page url=https://host-edabf7.redacted/p-c99e19 locale=pt-BR hops=0 status=- chars=10354 media=11 cache=hit latency_ms=656
+2026-09-09 19:52:36,947 INFO consentinel.triage Triage url=https://host-edabf7.redacted/p-c99e19 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=406
+2026-09-09 19:52:37,288 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:38,222 INFO consentinel.web_risk web_risk_check url=https://host-99b0c2.redacted/p-e9f24a safe=True threats=[] cache=hit
+2026-09-09 19:52:39,599 INFO consentinel.fetch_page fetch_page url=https://host-99b0c2.redacted/p-e9f24a locale=pt-BR hops=0 status=- chars=16429 media=40 cache=hit latency_ms=765
+2026-09-09 19:52:40,540 INFO consentinel.triage Triage url=https://host-99b0c2.redacted/p-e9f24a ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=312
+2026-09-09 19:52:40,846 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:41,972 INFO consentinel.web_risk web_risk_check url=https://host-681df0.redacted/p-4ccbd4 safe=True threats=[] cache=hit
+2026-09-09 19:52:43,073 INFO consentinel.fetch_page fetch_page url=https://host-681df0.redacted/p-4ccbd4 locale=pt-BR hops=0 status=- chars=4916 media=18 cache=hit latency_ms=500
+2026-09-09 19:52:44,187 INFO consentinel.triage Triage url=https://host-681df0.redacted/p-4ccbd4 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=516
+2026-09-09 19:52:44,479 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:45,366 INFO consentinel.web_risk web_risk_check url=https://host-a86e88.redacted/p-2f852f safe=True threats=[] cache=hit
+2026-09-09 19:52:46,966 WARNING consentinel.fetch_page fetch_page url=https://host-a86e88.redacted/p-2f852f locale=es-MX hops=1 status=403 chars=0 media=0 cache=miss latency_ms=985 FAILED reason='FetchFailed: fetch_page: HTTP 403 for https://host-a86e88.redacted/p-2f852f'
+2026-09-09 19:52:49,236 INFO consentinel.web_risk web_risk_check url=https://host-99b0c2.redacted/p-403b80 safe=True threats=[] cache=hit
+2026-09-09 19:52:52,708 INFO consentinel.fetch_page fetch_page url=https://host-99b0c2.redacted/p-403b80 locale=es-MX hops=0 status=- chars=16697 media=40 cache=hit latency_ms=1735
+2026-09-09 19:52:54,651 INFO consentinel.triage Triage url=https://host-99b0c2.redacted/p-403b80 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=312
+2026-09-09 19:52:54,989 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:55,903 INFO consentinel.web_risk web_risk_check url=https://host-25836f.redacted/p-39ed65 safe=True threats=[] cache=hit
+2026-09-09 19:52:57,276 INFO consentinel.fetch_page fetch_page url=https://host-25836f.redacted/p-39ed65 locale=es-MX hops=0 status=- chars=10073 media=28 cache=hit latency_ms=765
+2026-09-09 19:52:58,206 INFO consentinel.triage Triage url=https://host-25836f.redacted/p-39ed65 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=312
+2026-09-09 19:52:58,500 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:52:59,472 INFO consentinel.web_risk web_risk_check url=https://host-e4f4c4.redacted/p-b31e5f safe=True threats=[] cache=hit
+2026-09-09 19:53:00,994 INFO consentinel.fetch_page fetch_page url=https://host-e4f4c4.redacted/p-b31e5f locale=ja-JP hops=0 status=- chars=0 media=0 cache=hit latency_ms=313
+2026-09-09 19:53:02,144 INFO consentinel.web_risk web_risk_check url=https://host-afcb08.redacted/p-30c1c8 safe=True threats=[] cache=hit
+2026-09-09 19:53:03,116 INFO consentinel.fetch_page fetch_page url=https://host-afcb08.redacted/p-30c1c8 locale=ja-JP hops=0 status=- chars=4412 media=28 cache=hit latency_ms=375
+2026-09-09 19:53:04,009 INFO consentinel.triage Triage url=https://host-afcb08.redacted/p-30c1c8 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=297
+2026-09-09 19:53:04,307 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:53:05,178 INFO consentinel.web_risk web_risk_check url=https://host-99b0c2.redacted/p-9f5671 safe=True threats=[] cache=hit
+2026-09-09 19:53:06,215 INFO consentinel.fetch_page fetch_page url=https://host-99b0c2.redacted/p-9f5671 locale=ja-JP hops=0 status=- chars=8564 media=40 cache=hit latency_ms=422
+2026-09-09 19:53:07,078 INFO consentinel.triage Triage url=https://host-99b0c2.redacted/p-9f5671 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:53:07,363 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:53:08,223 INFO consentinel.web_risk web_risk_check url=https://host-80f6e8.redacted/p-6e0e50 safe=True threats=[] cache=hit
+2026-09-09 19:53:09,249 INFO consentinel.fetch_page fetch_page url=https://host-80f6e8.redacted/p-6e0e50 locale=hi-IN hops=0 status=- chars=7167 media=55 cache=hit latency_ms=438
+2026-09-09 19:53:10,143 INFO consentinel.triage Triage url=https://host-80f6e8.redacted/p-6e0e50 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=297
+2026-09-09 19:53:10,428 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:53:11,292 INFO consentinel.web_risk web_risk_check url=https://host-3017fe.redacted/p-8c2b3e safe=True threats=[] cache=hit
+2026-09-09 19:53:12,419 INFO consentinel.fetch_page fetch_page url=https://host-3017fe.redacted/p-8c2b3e locale=hi-IN hops=0 status=- chars=10298 media=33 cache=hit latency_ms=531
+2026-09-09 19:53:13,300 INFO consentinel.triage Triage url=https://host-3017fe.redacted/p-8c2b3e ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:53:13,595 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:53:14,459 INFO consentinel.web_risk web_risk_check url=https://host-afcb08.redacted/p-b427b9 safe=True threats=[] cache=hit
+2026-09-09 19:53:15,430 INFO consentinel.fetch_page fetch_page url=https://host-afcb08.redacted/p-b427b9 locale=hi-IN hops=0 status=- chars=5661 media=28 cache=hit latency_ms=391
+2026-09-09 19:53:16,311 INFO consentinel.triage Triage url=https://host-afcb08.redacted/p-b427b9 ok=True confidence=1.0 quote=False injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:53:16,600 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=False
+2026-09-09 19:53:17,494 INFO consentinel.web_risk web_risk_check url=https://host-053c37.redacted/p-1aafab safe=True threats=[] cache=hit
+2026-09-09 19:53:18,383 INFO consentinel.fetch_page fetch_page url=https://host-053c37.redacted/p-1aafab locale=en-US hops=0 status=- chars=310 media=2 cache=hit latency_ms=297
+2026-09-09 19:53:19,264 INFO consentinel.triage Triage url=https://host-053c37.redacted/p-1aafab ok=True confidence=1.0 quote=False injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:53:19,568 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=False
+2026-09-09 19:53:20,435 INFO consentinel.web_risk web_risk_check url=https://host-8b026a.redacted/ safe=True threats=[] cache=hit
+2026-09-09 19:53:22,742 WARNING consentinel.fetch_page fetch_page url=https://host-8b026a.redacted/ locale=en-US hops=1 status=403 chars=0 media=0 cache=miss latency_ms=1578 FAILED reason='FetchFailed: fetch_page: HTTP 403 for https://host-8b026a.redacted/'
+2026-09-09 19:53:23,608 INFO consentinel.web_risk web_risk_check url=https://host-323766.redacted/p-b77ef2 safe=True threats=[] cache=hit
+2026-09-09 19:53:24,505 INFO consentinel.fetch_page fetch_page url=https://host-323766.redacted/p-b77ef2 locale=en-US hops=0 status=- chars=209 media=1 cache=hit latency_ms=312
+2026-09-09 19:53:25,388 INFO consentinel.triage Triage url=https://host-323766.redacted/p-b77ef2 ok=True confidence=0.1 quote=False injection=False cache=hit repairs=0 latency_ms=282
+2026-09-09 19:53:25,692 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=False
+2026-09-09 19:53:26,567 INFO consentinel.web_risk web_risk_check url=https://host-afcb08.redacted/p-1a59e6 safe=True threats=[] cache=hit
+2026-09-09 19:53:27,499 INFO consentinel.fetch_page fetch_page url=https://host-afcb08.redacted/p-1a59e6 locale=pt-BR hops=0 status=- chars=6545 media=34 cache=hit latency_ms=359
+2026-09-09 19:53:28,401 INFO consentinel.triage Triage url=https://host-afcb08.redacted/p-1a59e6 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=266
+2026-09-09 19:53:28,715 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True
+2026-09-09 19:53:29,566 INFO consentinel.web_risk web_risk_check url=https://host-a86e88.redacted/p-a7a896 safe=True threats=[] cache=hit
+2026-09-09 19:53:31,097 WARNING consentinel.fetch_page fetch_page url=https://host-a86e88.redacted/p-a7a896 locale=pt-BR hops=1 status=403 chars=0 media=0 cache=miss latency_ms=938 FAILED reason='FetchFailed: fetch_page: HTTP 403 for https://host-a86e88.redacted/p-a7a896'
+2026-09-09 19:53:32,022 INFO consentinel.web_risk web_risk_check url=https://host-fe82d6.redacted/p-d58ad6 safe=True threats=[] cache=hit
+2026-09-09 19:53:33,297 INFO consentinel.fetch_page fetch_page url=https://host-fe82d6.redacted/p-d58ad6 locale=pt-BR hops=0 status=- chars=8218 media=6 cache=hit latency_ms=328
+2026-09-09 19:53:34,172 INFO consentinel.triage Triage url=https://host-fe82d6.redacted/p-d58ad6 ok=True confidence=1.0 quote=True injection=False cache=hit repairs=0 latency_ms=281
+2026-09-09 19:53:34,464 INFO consentinel.reconciler Reconciler performer=perf_mira_vance verdict=ambiguous check=performer_not_identified grants=1 citation=True

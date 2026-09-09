@@ -36,6 +36,7 @@ from consentinel.agents.consent_ingest import PROMPT_VERSION
 from consentinel.audit import FirestoreAudit
 from consentinel.cache import FirestoreCache
 from consentinel.harness.ports import HarnessDeps
+from consentinel.model_armor import ModelArmor, describe as describe_armor
 from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
@@ -77,6 +78,7 @@ def set_store(store: Store) -> None:
 
 _audit: Optional[FirestoreAudit] = None
 _cache: Optional[FirestoreCache] = None
+_armor: Optional[ModelArmor] = None
 
 # One logger, one metrics sink, one tracer for the process. The tracer picks
 # Cloud Trace when a project is configured and an in-memory one otherwise, so a
@@ -107,6 +109,32 @@ def get_audit() -> FirestoreAudit:
     if _audit is None:
         _audit = FirestoreAudit(get_store(), subject_type="consent")
     return _audit
+
+
+def get_armor() -> ModelArmor:
+    """The Model Armor screen, shared for the life of the process.
+
+    `HarnessDeps.armor` defaults to `NullArmor`, which returns a clean verdict
+    forever — indistinguishable from a screen that ran and found nothing. Until
+    this was passed in, WU-29 was real code that never executed on a single
+    request.
+
+    Cheap to hold: the client is constructed lazily on first screen, so an
+    instance costs nothing on a laptop with no credentials.
+
+    A contract PDF is user-supplied text, so it goes through the **inbound**
+    template — which labels and never blocks. A missing template or an API
+    failure resolves to `armor_unavailable` and the upload still works; only
+    the outbound notice screen blocks on failure, and the app never drafts one.
+    """
+    global _armor
+    if _armor is None:
+        _armor = ModelArmor(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            audit=get_audit(),
+        )
+    return _armor
 
 
 # --------------------------------------------------------------- presentation
@@ -275,6 +303,7 @@ async def consent_extract(
             deps=HarnessDeps(
                 audit=get_audit(),
                 cache=get_cache(),
+                armor=get_armor(),
                 tracer=tracer,
                 metrics=metrics,
                 prompt_version=PROMPT_VERSION,
@@ -308,6 +337,10 @@ async def consent_extract(
              from_cache=result.from_cache, cache_age_s=result.cache_age_s,
              duration_s=round(result.duration_s, 2),
              injection_suspected=result.injection_suspected,
+             # So "the screen found nothing" is distinguishable from "no screen
+             # ran". `NullArmor` returns clean verdicts forever and looks
+             # identical to a clean page in every other field.
+             armor=describe_armor(get_armor()),
              trace_id=trace_id, span_id=span_id)
     if result.value.dropped:
         for d in result.value.dropped:
