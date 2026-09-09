@@ -49,6 +49,15 @@ class FindingStatus(str, Enum):
     DOSSIER_DRAFTED = "dossier_drafted"
     DISMISSED = "dismissed"
 
+    # We looked up the address, found it was known-dangerous, and did not open
+    # it. The verdict stays `ambiguous`, because refusing to look is not the
+    # same as deciding the use was allowed.
+    BLOCKED_UNSAFE = "blocked_unsafe"
+
+    # The page contained material we must not keep a copy of. Nothing is
+    # snapshotted and nothing is shown on screen; a person is told instead.
+    ESCALATED_UNLAWFUL = "escalated_unlawful"
+
 
 class DiscoveredVia(str, Enum):
     TEXT = "text"

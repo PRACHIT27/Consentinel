@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.7.4`**
+**Doc set version: `v2.0.4`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,7 +107,7 @@ commit.
 
 Newest first.
 
-## v1.7.4 - 2026-09-09 - Vedant (with Claude)
+## v2.0.4 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md`, `COMPETITION.md` §12, `README.md`
 **Type:** PATCH — a factual correction; nothing anyone is building against moves
 
@@ -139,13 +139,14 @@ magic bytes.
   on camera — it is a plausible casting photo of nobody, but it is your call
 - Anyone regenerating: `pip install -r requirements-dev.txt` first
 
-## v1.7.3 - 2026-09-09 - Vedant (with Claude)
+## v2.0.3 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
 **Type:** PATCH — but read the DESIGN.md deviation below and push back if you disagree
 
-*(Renumbered on merge: my three entries were written as v1.5.1–v1.5.3 while Prachit was
-independently at v1.6–v1.7. Nothing was dropped — they are now v1.7.1, v1.7.2 and v1.7.3, so
-newest-first also reads highest-first.)*
+*(Renumbered twice on merge, because three sessions numbered independently: these four entries
+were written as v1.5.1–v1.5.4, then v1.7.1–v1.7.4, and are now **v2.0.1–v2.0.4** — above Prachit's
+v2.0.0 contract change, which they are built on. Nothing was dropped; newest-first reads
+highest-first again.)*
 
 **WU-07 TextSweep is done. Epic 2's P0 path is complete: 114 tests passing (24 new).**
 
@@ -195,7 +196,7 @@ What a reviewer should know:
   `url`, `url_hash`, `locale` and excerpts
 - Someone other than me should rule on the DESIGN.md deviation above
 
-## v1.7.2 - 2026-09-09 - Vedant (with Claude)
+## v2.0.2 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
 **Type:** PATCH — no contract or requirement moved
 
@@ -232,7 +233,7 @@ Things worth knowing if you touch discovery:
   plan means the sweep should be reported as partial, not clean
 - Prachit: nothing. This adds `consentinel/agents/`, touches nothing of yours
 
-## v1.7.1 - 2026-09-09 - Vedant (with Claude)
+## v2.0.1 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (Parallel SDK surface, status), plus new code under `consentinel/tools/`
 **Type:** PATCH — the frozen `parallel_search` signature is unchanged
 
@@ -274,6 +275,45 @@ so a fresh clone saw 23 tests, not 36.
   `ParallelSearch.search_detailed(...)` if you need attempts or cache age for a partial-sweep
   report. Check `is_degraded` before treating an empty result set as "nothing out there"
 - Everyone: `pip install -r requirements.txt` again to pick up `google-cloud-firestore`
+## v2.0.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `consentinel/store/base.py`, `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `DESIGN.md`
+**Type:** MAJOR - frozen-contract change
+
+**Vedant: read this before finishing WU-08.** The design defended against pages that try to
+*manipulate* the agent. It did not defend against pages that are simply dangerous to open, or that
+contain material we must not keep a copy of. Both are real for a system that searches the corners of
+the web where cloned voices are sold.
+
+**Contract changes**
+- New tool `web_risk_check(url) -> UrlRisk` in `tools/contracts.py`. Called **before** `fetch_page`,
+  never after. Uses Google's Web Risk service, which already keeps lists of malware and phishing
+  sites, so we are not the ones finding out. If it says unsafe: do not open the page, and if the
+  check itself fails, treat the address as unsafe and skip it.
+- Two new `FindingStatus` values. `BLOCKED_UNSAFE` for an address we refused to open;
+  `ESCALATED_UNLAWFUL` for a page carrying material we must not store.
+- `fetch_page` docstring now states the order: web risk, then network guards, then Model Armor.
+  Three different problems, and none of them substitutes for the others.
+
+**Design addition - DESIGN.md Part III**
+- Web Risk API enabled on the project.
+- Model Armor settings stay asymmetric on purpose: **flag but do not block** on the way in, because
+  a page trying to manipulate us is frequently the very page that is infringing and blocking it
+  would suppress the finding. **Block** on the way out, because a takedown letter must never carry
+  personal data or a link to a malware site.
+- **The unlawful-material rule.** When safety filters flag a page in that category, nothing is
+  snapshotted and nothing is rendered. We keep the address, a hash, the classification and the time,
+  set `ESCALATED_UNLAWFUL`, and tell a person. This is the one place the product deliberately keeps
+  *less* evidence, because here preserving is the harm.
+- A refused page keeps `verdict = AMBIGUOUS`. Refusing to look is not the same as deciding the use
+  was allowed.
+
+**Action required:**
+- **Vedant, WU-08:** call `web_risk_check` first. Do not fetch on an unsafe result and do not fetch
+  when the check errors
+- **Vedant, WU-06:** add known-bad hosts to Parallel's `source_policy.exclude_domains` - cheapest
+  defence of all, since those pages never enter the pipeline
+- **Prachit, WU-22:** the findings screen must render both new states without showing page content
+
 ## v1.7.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `tools/make_contract_pdf.py`, `fixtures/docs/`, `requirements-dev.txt`
 **Type:** MINOR
