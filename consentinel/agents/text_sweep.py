@@ -44,6 +44,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from consentinel.agents.query_planner import CANDIDATE_BUDGET, SearchBatch, SearchPlan
 from consentinel.harness import HarnessDeps
+from consentinel.reliability import (
+    BREAKER_THRESHOLD,
+    CircuitBreaker,
+    SweepGuard,
+)
 from consentinel.store.base import (
     DiscoveredVia,
     Finding,
@@ -167,6 +172,8 @@ class SweepReport:
     write_failures: int = 0
     from_cache: int = 0
     duration_s: float = 0.0
+    aborted: bool = False
+    abort_reason: Optional[str] = None
 
     @property
     def degraded(self) -> bool:
@@ -177,7 +184,7 @@ class SweepReport:
         a degraded plan, one failed batch, or one failed write all count.
         """
         return bool(self.plan_degraded or self.batches_degraded
-                    or self.write_failures)
+                    or self.write_failures or self.aborted)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -193,6 +200,8 @@ class SweepReport:
             "plan_degraded": self.plan_degraded,
             "write_failures": self.write_failures,
             "from_cache": self.from_cache,
+            "aborted": self.aborted,
+            "abort_reason": self.abort_reason,
             "degraded": self.degraded,
             "duration_s": round(self.duration_s, 4),
         }
@@ -227,6 +236,7 @@ class TextSweep:
     concurrency: int = DEFAULT_CONCURRENCY
     exclude_domains: Optional[tuple[str, ...]] = None   # None -> read the env
     after_date: Optional[str] = None                    # YYYY-MM-DD, freshness
+    abort_after: int = BREAKER_THRESHOLD                # consecutive failures
 
     def _searcher(self) -> ParallelSearch:
         if self.search is None:
@@ -242,12 +252,13 @@ class TextSweep:
         sweep_id = sweep_id or f"sweep_{uuid.uuid4().hex[:12]}"
         batches = list(plan.batches)
 
-        responses = self._run_batches(batches, plan, sweep_id, performer)
+        responses, guard = self._run_batches(batches, plan, sweep_id, performer)
         candidates, raw, duplicates, capped, degraded_batches, cached = \
             self._collect(batches, responses)
         findings, write_failures = self._persist(performer, candidates)
 
         report = SweepReport(
+            aborted=guard.circuit_open, abort_reason=guard.reason,
             performer_id=performer.id, sweep_id=sweep_id,
             candidates=candidates, findings=findings,
             batches_planned=len(batches),
@@ -264,21 +275,31 @@ class TextSweep:
     # ------------------------------------------------------------------
 
     def _run_batches(self, batches: Sequence[SearchBatch], plan: SearchPlan,
-                     sweep_id: str, performer: Performer) -> list[Any]:
+                     sweep_id: str, performer: Performer
+                     ) -> tuple[list[Any], SweepGuard]:
         """One `parallel_search` call per batch, a few in flight at a time.
 
         Results come back in plan order regardless of which finished first, so
         two identical sweeps produce identically ordered findings — which is
         what makes the cap reproducible instead of a race.
+
+        WU-14: a `SweepGuard` counts consecutive provider failures, and once
+        its breaker opens the remaining batches are **skipped rather than
+        attempted**. Twenty batches each failing safely would otherwise produce
+        an empty result set that renders exactly like "nothing out there".
         """
         searcher = self._searcher()
+        guard = SweepGuard(provider="parallel",
+                           breaker=CircuitBreaker(threshold=self.abort_after))
         excluded = (self.exclude_domains if self.exclude_domains is not None
                     else exclude_domains_from_env())
         policy = (SourcePolicy(exclude_domains=excluded, after_date=self.after_date)
                   if (excluded or self.after_date) else None)
 
         def one(batch: SearchBatch) -> Any:
-            return searcher.search_detailed(
+            if guard.should_abort:
+                return None               # skipped: the provider has stopped answering
+            result = searcher.search_detailed(
                 objective=batch.objective,
                 search_queries=list(batch.search_queries),
                 locale=batch.locale,
@@ -287,12 +308,19 @@ class TextSweep:
                 subject_id=performer.id,
                 source_policy=policy,
             )
+            response = getattr(result, "value", None)
+            guard.record(bool(getattr(result, "ok", False)) and response is not None
+                         and not is_degraded(response))
+            return result
 
         if not batches:
-            return []
+            return [], guard
         workers = max(1, min(self.concurrency, len(batches)))
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            return list(pool.map(one, batches))   # map preserves input order
+            responses = list(pool.map(one, batches))   # map preserves input order
+        if guard.circuit_open:
+            log.warning("%s: %s", AGENT_NAME, guard.reason)
+        return responses, guard
 
     def _collect(self, batches: Sequence[SearchBatch], responses: Sequence[Any]
                  ) -> tuple[tuple[Candidate, ...], int, int, bool,
@@ -307,6 +335,10 @@ class TextSweep:
                 zip(batches, responses, strict=True)):
             if getattr(result, "from_cache", False):
                 cached += 1
+            if result is None:
+                # Never attempted: the provider was already down (WU-14).
+                degraded.append(f"{batch.locale}/{batch.modality} (skipped)")
+                continue
             response: Optional[SearchResponse] = getattr(result, "value", None)
             if not getattr(result, "ok", False) or response is None \
                     or is_degraded(response):
