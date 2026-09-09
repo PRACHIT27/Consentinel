@@ -72,6 +72,7 @@ class SweepSummary:
     refused: int = 0             # pages we would not or could not open
     searches: int = 0            # search calls made
     searches_cached: int = 0     # ...of which were served from the cache
+    withheld_by_locale: dict[str, int] = field(default_factory=dict)
     verdicts: dict[str, int] = field(default_factory=dict)
     degraded: bool = False
     notes: list[str] = field(default_factory=list)
@@ -167,6 +168,13 @@ def run(
         if not writable:
             # Counted and named in the log, not written. See the module note.
             summary.withheld += 1
+            # Counted per locale, because the count is the only honest way to
+            # show what the search actually returned. The addresses stay in the
+            # log: naming a real company on a public screen is the thing Demo
+            # safety rules out, and a bare "21 withheld" leaves a viewer unable
+            # to tell whether the search ran at all.
+            where = str(candidate.locale) if candidate.locale else "unknown"
+            summary.withheld_by_locale[where] = summary.withheld_by_locale.get(where, 0) + 1
             log.info("withheld (third party): %s", candidate.url)
             continue
 

@@ -352,7 +352,7 @@ def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = N
 def findings(request: Request, k: Optional[str] = None,
              swept: Optional[int] = None, withheld: Optional[int] = None,
              searched: Optional[int] = None, live: Optional[int] = None,
-             cached: Optional[int] = None):
+             cached: Optional[int] = None, by: Optional[str] = None):
     store = get_store()
     performers = {p.id: p for p in store.list_performers()}
     # Lead with the breaches. Sorting alphabetically would put "ambiguous"
@@ -393,6 +393,7 @@ def findings(request: Request, k: Optional[str] = None,
             "searched": searched or 0,
             "live": live or 0,
             "cached": cached or 0,
+            "withheld_by": [p.split(":") for p in (by or "").split(",") if ":" in p],
         },
     )
 
@@ -600,6 +601,12 @@ def consent_save(
 # performer, and it records findings only for addresses we control.
 
 
+def _locale_counts(counts: dict) -> str:
+    """`ja-JP:4,en-US:3` — small enough for a query string, and it is the only
+    thing on screen that shows the search reached five languages."""
+    return ",".join(f"{k}:{v}" for k, v in sorted(counts.items(), key=lambda kv: -kv[1]))
+
+
 @app.post("/sweep")
 def run_sweep(request: Request, k: Optional[str] = Form(None)):
     """Run one sweep and return to the findings screen.
@@ -649,7 +656,9 @@ def run_sweep(request: Request, k: Optional[str] = Form(None)):
                                 f"&withheld={summary.withheld}"
                                 f"&searched={summary.searched}"
                                 f"&live={summary.searches - summary.searches_cached}"
-                                f"&cached={summary.searches_cached}", status_code=303)
+                                f"&cached={summary.searches_cached}"
+                                f"&by={_locale_counts(summary.withheld_by_locale)}",
+                            status_code=303)
 
 
 # --------------------------------------------------------------- the case file

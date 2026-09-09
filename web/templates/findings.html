@@ -29,9 +29,13 @@
       <strong>Sweep finished.</strong> {{ searched }} results across five languages &mdash;
       {{ live }} search{{ 'es' if live != 1 }} went to Parallel just now,
       {{ cached }} came back from the cache. {{ swept }} recorded, {{ withheld }} withheld.
-      {% if withheld %}Those {{ withheld }} are real websites. We searched them, we counted them,
-        and we do not publish an authorisation verdict naming a real company from a public demo
-        &mdash; so the finding recorded below is the page we control.{% endif %}
+      {% if withheld %}
+        <br><br>Those {{ withheld }} are <strong>real, live websites</strong> that Parallel returned
+        &mdash;{% for pair in withheld_by %} {{ pair[1] }} in {{ pair[0] }}{{ ',' if not loop.last }}{% endfor %}.
+        We do not publish an authorisation verdict naming a real company from a public demo, so they
+        are counted here and named only in the run log. The finding recorded below is the page we
+        host ourselves, which is the one we can say something about in public.
+      {% endif %}
     </div>
   {% endif %}
 
