@@ -156,6 +156,7 @@ def _deps(*, candidates, readable=True):
     plan = NS(locales=(), batches=(), degraded=False)
     urls = list(candidates)
     report = NS(raw_results=len(urls), degraded=False, abort_reason=None,
+                batches_run=len(urls), from_cache=0,
                 candidates=tuple(m._manual_candidate(u, plan) for u in urls))
 
     extraction = NS(depicts_named_person=True, person_name="Mira Vance",

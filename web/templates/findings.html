@@ -26,8 +26,9 @@
 
   {% if swept is not none %}
     <div class="human-flag" style="margin-top:22px;">
-      <strong>Sweep finished.</strong> {{ searched }} results across five languages;
-      {{ swept }} recorded, {{ withheld }} withheld.
+      <strong>Sweep finished.</strong> {{ searched }} results across five languages &mdash;
+      {{ live }} search{{ 'es' if live != 1 }} went to Parallel just now,
+      {{ cached }} came back from the cache. {{ swept }} recorded, {{ withheld }} withheld.
       {% if withheld %}Those {{ withheld }} are real websites. We searched them, we counted them,
         and we do not publish an authorisation verdict naming a real company from a public demo
         &mdash; so the finding recorded below is the page we control.{% endif %}

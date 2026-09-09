@@ -348,7 +348,8 @@ def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = N
 @app.get("/findings", response_class=HTMLResponse)
 def findings(request: Request, k: Optional[str] = None,
              swept: Optional[int] = None, withheld: Optional[int] = None,
-             searched: Optional[int] = None):
+             searched: Optional[int] = None, live: Optional[int] = None,
+             cached: Optional[int] = None):
     store = get_store()
     performers = {p.id: p for p in store.list_performers()}
     # Lead with the breaches. Sorting alphabetically would put "ambiguous"
@@ -387,6 +388,8 @@ def findings(request: Request, k: Optional[str] = None,
             "swept": swept,
             "withheld": withheld or 0,
             "searched": searched or 0,
+            "live": live or 0,
+            "cached": cached or 0,
         },
     )
 
@@ -641,7 +644,9 @@ def run_sweep(request: Request, k: Optional[str] = Form(None)):
     sep = f"?k={k}&" if k else "?"
     return RedirectResponse(url=f"/findings{sep}swept={summary.recorded}"
                                 f"&withheld={summary.withheld}"
-                                f"&searched={summary.searched}", status_code=303)
+                                f"&searched={summary.searched}"
+                                f"&live={summary.searches - summary.searches_cached}"
+                                f"&cached={summary.searches_cached}", status_code=303)
 
 
 # ------------------------------------------------------------- the demo pages

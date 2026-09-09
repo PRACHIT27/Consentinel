@@ -70,14 +70,18 @@ class SweepSummary:
     withheld: int = 0            # third-party candidates, not written
     read: int = 0                # pages Triage read
     refused: int = 0             # pages we would not or could not open
+    searches: int = 0            # search calls made
+    searches_cached: int = 0     # ...of which were served from the cache
     verdicts: dict[str, int] = field(default_factory=dict)
     degraded: bool = False
     notes: list[str] = field(default_factory=list)
 
     def line(self) -> str:
         counts = ", ".join(f"{n} {v}" for v, n in sorted(self.verdicts.items())) or "none"
+        live = self.searches - self.searches_cached
         return (f"{self.batches} batches over {self.locales} locales · "
-                f"{self.searched} results · {self.candidates} candidates · "
+                f"{self.searched} results ({live} live, {self.searches_cached} cached) · "
+                f"{self.candidates} candidates · "
                 f"{self.read} read, {self.refused} refused · "
                 f"{self.recorded} recorded, {self.withheld} withheld · {counts}")
 
@@ -133,6 +137,13 @@ def run(
 
     report = TextSweep(store=_Collect(), deps=deps).run(performer, plan)
     summary.searched = report.raw_results
+    # Say which searches were live and which were replayed. A sweep that
+    # finishes in two seconds looks either impressive or fake, and the honest
+    # answer is neither: the cache is shared through Firestore, so a query
+    # someone already ran comes back instantly. Verdicts are never cached
+    # (hard rule 7), so the answer is recomputed either way.
+    summary.searches = report.batches_run
+    summary.searches_cached = report.from_cache
     if report.degraded:
         summary.degraded = True
         summary.notes.append(f"discovery degraded: {report.abort_reason or 'some batches failed'}")
