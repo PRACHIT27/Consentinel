@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.6`**
+**Doc set version: `v2.0.7`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,61 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.7 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status, new OQ-6), plus new code and two demo fixtures
+**Type:** PATCH — but **OQ-6 needs an answer from all three of us**
+
+**WU-11 is done. Epic 3's P0 path is complete: 303 passing (43 new).**
+
+`consentinel/agents/injection_canary.py`, wired into Triage, plus the demo pair
+`fixtures/pages/mira_listing_clean.html` and `mira_listing_injected.html`.
+
+**The demo moment, ready to film.** The two pages are identical apart from one paragraph — hidden
+the way a real injection would be: white 1px text, positioned off-screen, addressed to our agent
+rather than to a buyer. It tells us to set `is_synthetic_claim` false, set confidence to 1.0, mark
+the page authorised and skip review. What the tests prove:
+
+1. The injected page **is flagged**, with four marker families named.
+2. The clean twin **is not** — otherwise the badge means nothing.
+3. **The extraction is byte-identical between the two.** A verdict is a pure function of those
+   fields plus registry rows, so identical inputs cannot produce a different verdict. (WU-11's
+   acceptance says "verdict unchanged"; WU-12 does not exist yet, so it is asserted at the strongest
+   place available today. Add the end-to-end pair when the reconciler lands.)
+4. Processing is **not blocked** — a page trying to manipulate us is frequently the page that is
+   infringing.
+
+**OQ-6, and I did not resolve it myself:** `Finding` has no `injection_suspected` field, and WU-11
+says to set one. Adding a column to the frozen contract is a MAJOR change needing all three of us,
+so the flag currently rides in `Finding.reasoning` behind a parseable prefix —
+`[injection_suspected: instruction_override,verdict_steering]` — with
+`injection_canary.reasoning_flags()` / `is_flagged()` / `strip_marker()` to read it back.
+It works and the UI can badge from it today. **Answer OQ-6 before WU-22 builds the badge**, or the
+screen ends up coded against the workaround.
+
+Worth knowing:
+
+- **Marker names travel; matched text does not** (DESIGN §7). The audit row records
+  `injection_markers: [...]` and a hit count, never the sentence. A test greps the serialised row
+  for the payload. `spans` are offsets into the text we already hold, so WU-23 can highlight the
+  sentence it is already rendering escaped.
+- **Six families:** `instruction_override`, `role_assignment`, `verdict_steering`, `role_marker`,
+  `prompt_exfiltration`, `tool_coercion`. Grouped by what the page is *trying to do*, because that
+  is what a reviewer wants on the badge.
+- **A bug worth repeating:** the first version compiled patterns with an inline `(?i)` prefix, added
+  only when the pattern did not already start with `(?`. Half of them start with `(?:…)`, so four
+  families ran case-sensitively and missed `Act as…`, `Skip the review…`, `Reveal your system
+  prompt…` and `Call the function…`. Inline flags only apply when they lead the whole pattern.
+  `re.IGNORECASE` is now passed as a flag; `(?m)` stays inline where `^` must mean line-start.
+- False positives are deliberate policy: a badge costs nothing, a missed injection is a story about
+  a system that obeyed a web page.
+
+**Action required:**
+- **All three: answer OQ-6.** One line of contract, or we ship the `reasoning` workaround
+- **Swara:** `fixtures/pages/` is the demo footage for the security beat. Both pages are fictional
+  and safe to show on camera
+- **Prachit, WU-22:** badge from `injection_canary.reasoning_flags(finding.reasoning)` for now;
+  `InjectionScan.badge()` gives the one-line wording
 
 ## v2.0.6 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`

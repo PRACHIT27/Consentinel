@@ -268,6 +268,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `TextSweep` — *Vedant* (WU-07, 24 tests; dedupe on `url_hash`, 25-candidate cap)
 - [x] `fetch_page` + `web_risk_check` — *Vedant* (WU-08, 60 tests; SSRF guards, fails closed)
 - [x] `Triage` + extraction validators — *Vedant* (WU-09/WU-10, 67 tests; no tools, quote verbatim)
+- [x] Injection canary + the planted demo page — *Vedant* (WU-11, 43 tests)
 - [ ] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12, WU-13)
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
@@ -284,6 +285,7 @@ twice daily. **Read it before you start, update it before you finish.**
 |---|---|---|
 | OQ-3 | Current Cloud Vision web-detection API surface and quota | Vedant |
 | OQ-4 | Screenshot capture approach for evidence snapshots on Cloud Run | Prachit |
+| OQ-6 | **Does `Finding` get an `injection_suspected` boolean?** WU-11 needs one and the frozen contract has none, so the flag currently rides in `reasoning` behind `[injection_suspected: markers]` (`agents/injection_canary.py`). Adding the field is one line in `store/base.py` + `schema.sql` and a MAJOR bump — needs all three to agree. **Answer this before WU-22 builds the badge**, or the UI codes against the workaround | all three |
 
 Both remaining questions affect P2/P1 work only and gate nothing. Swara tracks them (T-49).
 

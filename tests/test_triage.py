@@ -476,7 +476,9 @@ def test_the_log_line_carries_no_page_content(caplog):
     line = next(r.getMessage() for r in caplog.records
                 if r.getMessage().startswith("Triage url="))
     assert "IGNORE" not in line
-    assert "quote=True" in line and "injection=False" in line
+    # injection=True because WU-11's canary flags this page — the label travels,
+    # the text does not.
+    assert "quote=True" in line and "injection=True" in line
 
 
 # ------------------------------------------------------------------ plumbing

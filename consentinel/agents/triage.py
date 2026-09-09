@@ -40,6 +40,8 @@ from typing import Any, Callable, Optional
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
+from consentinel.agents.injection_canary import InjectionScan
+from consentinel.agents.injection_canary import scan as scan_for_injection
 from consentinel.agents.validators import (
     REVIEW_THRESHOLD,
     extraction_validators,
@@ -125,6 +127,7 @@ class TriageResult:
     reason: Optional[str] = None
     fail_state: Optional[FailState] = None
     injection_suspected: bool = False
+    injection: InjectionScan = field(default_factory=InjectionScan)
     armor_findings: tuple[str, ...] = ()
     needs_media_pass: bool = False
     page_chars: int = 0
@@ -156,6 +159,9 @@ class TriageResult:
             "needs_media_pass": self.needs_media_pass,
             "injection_suspected": self.injection_suspected,
             "armor_findings": list(self.armor_findings),
+            # Marker names, never the matched text (DESIGN §7).
+            "injection_markers": list(self.injection.markers),
+            "injection_hits": self.injection.hits,
             "page_chars": self.page_chars,
             "truncated": self.truncated,
             "from_cache": self.from_cache,
@@ -228,6 +234,16 @@ class Triage:
                 ok=False, reason="page had no readable text",
                 fail_state=FailState.AMBIGUOUS, page_chars=0)
 
+        # WU-11: label the attempt before the model ever sees the page. The
+        # scan does not change what we send or how we read the answer — the
+        # point is that the system records what the page tried instead of
+        # obeying it, and a flagged page must still produce the same reading.
+        injection = scan_for_injection(page_text)
+        if injection.suspected:
+            log.warning("%s: injection markers %s (%d matches) on %s — "
+                        "labelling, not blocking", AGENT_NAME,
+                        list(injection.markers), injection.hits, snapshot.url)
+
         fence = f"UNTRUSTED-PAGE-{uuid.uuid4().hex[:12]}"
         instruction = build_instruction(fence)
         payload = build_payload(snapshot, performer, page_text, fence)
@@ -249,7 +265,8 @@ class Triage:
             validators=extraction_validators(page_text, performer),
             provider="gemini",
         )
-        outcome = self._to_result(result, snapshot, page_text, truncated)
+        outcome = self._to_result(result, snapshot, page_text, truncated,
+                                  injection)
         self._record(snapshot, performer, outcome, result.duration_s)
         return outcome
 
@@ -273,7 +290,11 @@ class Triage:
         return f"triage:{self.deps.prompt_version}:{digest}"
 
     def _to_result(self, result: HarnessResult, snapshot: PageSnapshot,
-                   page_text: str, truncated: bool) -> TriageResult:
+                   page_text: str, truncated: bool,
+                   injection: InjectionScan) -> TriageResult:
+        # Either signal counts: our own regex canary (WU-11) or Model Armor
+        # (WU-29). They look for different things and both are cheap.
+        suspected = bool(injection.suspected or result.injection_suspected)
         if not result.ok:
             reason = result.reason or "extraction failed"
             if "ValidationError" in reason:
@@ -282,7 +303,7 @@ class Triage:
                 reason = f"{FAILED_TWICE}: {reason}"
             return TriageResult(
                 ok=False, reason=reason, fail_state=result.fail_state,
-                injection_suspected=result.injection_suspected,
+                injection_suspected=suspected, injection=injection,
                 armor_findings=result.armor_findings,
                 page_chars=len(page_text), truncated=truncated,
                 from_cache=result.from_cache, cache_age_s=result.cache_age_s,
@@ -292,7 +313,7 @@ class Triage:
         extraction: TriageExtraction = result.value
         return TriageResult(
             extraction=extraction, ok=True,
-            injection_suspected=result.injection_suspected,
+            injection_suspected=suspected, injection=injection,
             armor_findings=result.armor_findings,
             needs_media_pass=needs_media_pass(extraction, snapshot),
             page_chars=len(page_text), truncated=truncated,
