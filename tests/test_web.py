@@ -98,8 +98,19 @@ def test_health_does_not_touch_the_database(client):
     assert r.status_code == 200 and r.json() == {"ok": True}
 
 
-def test_registry_shows_the_grant_and_its_quote(client):
+def test_the_front_page_counts_from_the_store_rather_than_inventing_numbers(client):
+    """A dashboard with made-up figures is worse than no dashboard: it is the
+    first thing a viewer trusts and the first thing that breaks that trust."""
     body = client.get("/").text
+    assert "One registry, two directions." in body
+    assert "Mira Vance" in body                 # the open finding names its performer
+    assert "a.invalid" in body                  # ...and the site it was found on
+    assert "f.exr" in body                      # the blocked clip, from the other direction
+    assert "v.wav" not in body, "a cleared clip needs no attention, so it stays off the front page"
+
+
+def test_registry_shows_the_grant_and_its_quote(client):
+    body = client.get("/registry").text
     assert "Mira Vance" in body
     assert "Halcyon Pictures" in body
     assert "Producer may generate synthetic voice performances." in body
@@ -110,22 +121,33 @@ def test_findings_lead_with_the_breaches(client):
     """Sorting alphabetically would put "ambiguous" first and bury the thing the
     page exists to show."""
     body = client.get("/findings").text
-    assert body.index("Not allowed") < body.index("Unclear")
-    assert "1 not allowed" in body or "1 not allowed" in body.replace("\n", " ")
+    assert body.index("not allowed") < body.index("unclear")
 
 
 def test_verdicts_are_shown_in_plain_words(client):
     """A judge watching a video should not have to translate "unauthorized"."""
     body = client.get("/findings").text
-    assert "Not allowed" in body and "unauthorized" not in body
+    assert "not allowed" in body and "unauthorized" not in body
 
 
 def test_clearance_names_what_cannot_ship(client):
     body = client.get("/clearance").text
-    assert "Blocked" in body
+    assert "blocked" in body
     assert "cannot ship" in body
-    assert "Unchecked" in body
-    assert "nothing in the registry permits this" in body
+    assert "unchecked" in body
+    assert "Nothing in the registry permits this" in body
+
+
+def test_every_row_carries_its_own_detail(client):
+    """The detail panel is filled by moving nodes the server already rendered.
+    If a row shipped without its detail block the panel would open empty, and
+    nothing else on the page would look wrong."""
+    for path in ("/registry", "/findings", "/clearance"):
+        body = client.get(path).text
+        rows = body.count("data-drawer-title=")
+        assert rows > 0, path
+        assert body.count("data-drawer-body") == rows, path
+        assert 'src="/static/console.js"' in body
 
 
 # ------------------------------------------------------------------ escaping

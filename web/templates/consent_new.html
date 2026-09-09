@@ -2,41 +2,55 @@
 {% block title %}Add a permission slip — Consentinel{% endblock %}
 
 {% block content %}
-<h1>Add a permission slip</h1>
-<p class="lead">Upload a signed agreement. We read out what the studio is allowed to do with an AI
-   copy of the performer, and quote the sentence each answer came from.</p>
-
-{% if error %}
-  <div class="banner bad">
-    <strong>Could not read that.</strong> {{ error }}
-    {% if fail_state %}<span class="hint">({{ fail_state }})</span>{% endif %}
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Permission registry &middot; new entry</p>
+      <h1>Add a permission slip.</h1>
+      <p>Upload a signed agreement. Consentinel reads out what the studio is allowed to do with an AI
+         copy of the performer, and quotes the sentence each answer came from.</p>
+    </div>
   </div>
-{% endif %}
 
-<form class="card" method="post" action="/consents/extract" enctype="multipart/form-data">
-  <input type="hidden" name="k" value="{{ k }}">
+  {% if error %}
+    <div class="banner bad" style="margin-top:22px;">
+      <strong>Could not read that.</strong> {{ error }}
+      {% if fail_state %}<span class="pill warn" style="margin-left:6px;">{{ fail_state }}</span>{% endif %}
+    </div>
+  {% endif %}
 
-  <label class="field">
-    <span class="label">Signed agreement (PDF)</span>
-    <input type="file" name="contract" accept="application/pdf" required>
-  </label>
+  <form class="panel" method="post" action="/consents/extract" enctype="multipart/form-data"
+        style="margin-top:22px;">
+    <input type="hidden" name="k" value="{{ k }}">
 
-  <p class="note">A scanned contract will not work — the text has to be selectable. Nothing is saved
-     until you have checked the answers on the next screen.</p>
+    <label class="dropzone" for="contract" style="display:block; cursor:pointer;">
+      <strong id="contractName">Choose the signed agreement</strong>
+      <span class="dz-sub">PDF, with selectable text. A scan will not work.</span>
+      <input type="file" id="contract" name="contract" accept="application/pdf" required
+             data-filename-into="contractName"
+             style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+    </label>
 
-  <button type="submit">Read the contract</button>
-</form>
+    <p class="hint" style="margin:10px 0 0;">Nothing is saved until you have checked the answers on
+       the next screen.</p>
 
-<section class="card">
-  <h3>What happens next</h3>
-  <ol class="steps">
-    <li>Gemini reads the pages and fills in six fields.</li>
-    <li>For each field it must quote the sentence it used, and say which page.</li>
-    <li>We check every quote really is on the page it claims. Any field whose quote does not check
-        out is dropped rather than guessed at.</li>
-    <li>You confirm or correct it, and then it is saved.</li>
-  </ol>
-  <p class="note">A wrong permission slip would quietly make every later answer wrong, so this is
-     the one place we insist on a person looking.</p>
-</section>
+    <div class="actions">
+      <button class="btn" type="submit">Read the contract</button>
+      <a href="/registry{{ q }}">Back to the registry</a>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h3>What happens next</h3>
+    <ol class="steps">
+      <li>Gemini reads the pages and fills in six fields.</li>
+      <li>For each field it must quote the sentence it used, and say which page.</li>
+      <li>We check every quote really is on the page it claims. Any field whose quote does not check
+          out is dropped rather than guessed at.</li>
+      <li>You confirm or correct it, and then it is saved.</li>
+    </ol>
+    <p class="hint" style="margin-top:14px;">A wrong permission slip would quietly make every later
+       answer wrong, so this is the one place we insist on a person looking.</p>
+  </div>
+</div>
 {% endblock %}

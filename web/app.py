@@ -166,8 +166,66 @@ def enum_value(value):
     return getattr(value, "value", value)
 
 
+# The console theme stamps a verdict rather than printing it: a rotated,
+# double-outlined block, the way a clearance department actually marks a file.
+# Same plain-English labels; only the presentation differs.
+#
+# The words inside a stamp stay plain and lower-case: plain because a viewer
+# should not have to translate "unauthorized", lower-case because that is how
+# the design draws them.
+VERDICT_STAMP = {
+    "authorized": ("teal", "allowed"),
+    "unauthorized": ("orange", "not allowed"),
+    "ambiguous": ("slate", "unclear"),
+    None: ("slate", "not checked"),
+}
+
+CLEARANCE_STAMP = {
+    "cleared": ("teal", "fine to ship"),
+    "blocked": ("orange", "blocked"),
+    "unverified": ("slate", "unchecked"),
+}
+
+
+def grant_state(consent) -> tuple[str, str]:
+    """Is this grant live, running out, or finished?
+
+    The registry screen leads with this because an expired grant looks exactly
+    like a valid one until someone checks the date — and a lapsed grant means
+    every use under it is now unauthorised.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    end = consent.valid_to
+    if end is None:
+        return ("active", "no end date")
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+    if end < now:
+        return ("expired", "expired")
+    if end - now < timedelta(days=90):
+        return ("expiring", "expiring soon")
+    return ("active", "active")
+
+
+def hostname(url: str) -> str:
+    """Just the host. A full URL wraps over three lines in a table cell and the
+    part a reader needs is the site."""
+    from urllib.parse import urlsplit
+
+    try:
+        return urlsplit(url).netloc or url
+    except Exception:
+        return url
+
+
 templates.env.filters["verdict_style"] = lambda v: style_for(VERDICT_STYLE, v)
 templates.env.filters["clearance_style"] = lambda v: style_for(CLEARANCE_STYLE, v)
+templates.env.filters["verdict_stamp"] = lambda v: style_for(VERDICT_STAMP, v)
+templates.env.filters["clearance_stamp"] = lambda v: style_for(CLEARANCE_STAMP, v)
+templates.env.filters["grant_state"] = grant_state
+templates.env.filters["hostname"] = hostname
 templates.env.filters["ev"] = enum_value
 
 
@@ -186,7 +244,72 @@ def healthz() -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+def _qs(k: Optional[str]) -> str:
+    """The action key, carried between pages so the nav link survives a click."""
+    return f"?k={k}" if k else ""
+
+
 @app.get("/", response_class=HTMLResponse)
+def overview(request: Request, k: Optional[str] = None):
+    """The console front page.
+
+    Every number here is counted from Firestore rather than written in. A
+    dashboard with invented figures is worse than no dashboard: it is the first
+    thing a viewer trusts and the first thing that makes them stop trusting the
+    rest.
+    """
+    store = get_store()
+    performers = {p.id: p for p in store.list_performers()}
+    consents = [c for pid in performers for c in store.list_consents(pid)]
+    findings = store.list_findings()
+    assets = store.list_assets(os.environ.get("CONSENTINEL_DEMO_PRODUCTION", "prod_halcyon_nightfall"))
+
+    live = [c for c in consents if grant_state(c)[0] != "expired"]
+    open_findings = [f for f in findings if enum_value(f.verdict) == "unauthorized"]
+    locales = {f.discovered_locale for f in findings if f.discovered_locale}
+
+    stats = {
+        "grants": len(live),
+        "open_findings": len(open_findings),
+        "assets_checked": sum(1 for a in assets if enum_value(a.clearance_state) != "unverified"),
+        "languages": len({loc.split("-")[0] for loc in locales}) or 1,
+    }
+
+    # Recent activity mixes both directions, worst first, because a breach is
+    # what a reader needs to see before anything else.
+    activity = []
+    for f in sorted(findings, key=lambda f: ({"unauthorized": 0, "ambiguous": 1}.get(enum_value(f.verdict), 2), f.id)):
+        stamp, label = style_for(VERDICT_STAMP, f.verdict)
+        performer = performers.get(f.performer_id)
+        activity.append({
+            "title": hostname(f.url),
+            "subtitle": (f.modality and f"synthetic {enum_value(f.modality)} offering") or "web finding",
+            "direction": "enforcement", "direction_class": "expiring",
+            "detail": f"{performer.name if performer else f.performer_id}"
+                      + (" — no matching grant" if not f.matched_consent_id else ""),
+            "stamp": label, "stamp_class": stamp, "href": "/findings",
+        })
+    for a in assets:
+        if enum_value(a.clearance_state) == "cleared":
+            continue          # the front page leads with what needs attention
+        stamp, label = style_for(CLEARANCE_STAMP, a.clearance_state)
+        activity.append({
+            "title": a.filename,
+            "subtitle": f"{a.vendor or 'vendor not recorded'}, {a.shot_code or 'no shot code'}",
+            "direction": "clearance", "direction_class": "active",
+            "detail": a.reasoning or "",
+            "stamp": label, "stamp_class": stamp, "href": "/clearance",
+        })
+
+    return templates.TemplateResponse(
+        request,
+        "overview.html",
+        {"nav": "overview", "k": k or "", "q": _qs(k),
+         "stats": stats, "activity": activity[:6]},
+    )
+
+
+@app.get("/registry", response_class=HTMLResponse)
 def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = None):
     store = get_store()
     rows = []
@@ -195,7 +318,7 @@ def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = N
     return templates.TemplateResponse(
         request,
         "registry.html",
-        {"rows": rows, "nav": "registry", "k": k or "", "saved": saved},
+        {"rows": rows, "nav": "registry", "k": k or "", "q": _qs(k), "saved": saved},
     )
 
 
@@ -234,6 +357,7 @@ def findings(request: Request, k: Optional[str] = None):
             "counts": counts,
             "nav": "findings",
             "k": k or "",
+            "q": _qs(k),
         },
     )
 
@@ -244,9 +368,10 @@ def clearance(request: Request, k: Optional[str] = None):
     production = os.environ.get("CONSENTINEL_DEMO_PRODUCTION", "prod_halcyon_nightfall")
     assets = sorted(store.list_assets(production), key=lambda a: a.id)
 
+    performers = {p.id: p for p in store.list_performers()}
     consents: dict[str, object] = {}
-    for p in store.list_performers():
-        for c in store.list_consents(p.id):
+    for pid in performers:
+        for c in store.list_consents(pid):
             consents[c.id] = c
 
     blockers = [a for a in assets if enum_value(a.clearance_state) == "blocked"]
@@ -258,11 +383,13 @@ def clearance(request: Request, k: Optional[str] = None):
         {
             "production": production,
             "assets": assets,
+            "performers": performers,
             "consents": consents,
             "blockers": blockers,
             "unchecked": unchecked,
             "nav": "clearance",
             "k": k or "",
+            "q": _qs(k),
         },
     )
 
@@ -279,7 +406,7 @@ def clearance(request: Request, k: Optional[str] = None):
 def consent_new(request: Request, k: Optional[str] = None):
     security.check(k)
     return templates.TemplateResponse(
-        request, "consent_new.html", {"nav": "registry", "k": k or ""}
+        request, "consent_new.html", {"nav": "registry", "k": k or "", "q": _qs(k)}
     )
 
 
@@ -325,6 +452,7 @@ async def consent_extract(
             {
                 "nav": "registry",
                 "k": k or "",
+                "q": _qs(k),
                 "error": result.reason,
                 "fail_state": enum_value(result.fail_state),
             },
@@ -352,6 +480,7 @@ async def consent_extract(
         {
             "nav": "registry",
             "k": k or "",
+            "q": _qs(k),
             "draft": result.value,
             "filename": contract.filename,
             "result": result,
@@ -404,5 +533,5 @@ def consent_save(
     )
     store.upsert_consent(consent)
 
-    sep = "?" if not k else f"?k={k}&"
-    return RedirectResponse(url=f"/{sep}saved={consent.id}".replace("?&", "?"), status_code=303)
+    sep = f"?k={k}&" if k else "?"
+    return RedirectResponse(url=f"/registry{sep}saved={consent.id}", status_code=303)

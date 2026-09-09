@@ -2,98 +2,108 @@
 {% block title %}Check this permission slip — Consentinel{% endblock %}
 
 {% block content %}
-<h1>Check this before it is saved</h1>
-<p class="lead">This is what Gemini read out of <code>{{ filename }}</code>. Every quote below has
-   been checked against the page it claims. Correct anything that is wrong.</p>
-
-<div class="tally">
-  <span class="pill muted">{{ draft.page_count }} pages read</span>
-  <span class="pill muted">{{ draft.citations | length }} quotes checked</span>
-  {% if result.from_cache %}<span class="pill muted">from cache</span>
-  {% else %}<span class="pill muted">{{ "%.1f"|format(result.duration_s) }}s</span>{% endif %}
-  {% if result.repairs %}<span class="pill warn">{{ result.repairs }} repair</span>{% endif %}
-  {% if result.injection_suspected %}<span class="pill warn">the document tried to instruct us</span>{% endif %}
-</div>
-
-{% if draft.dropped %}
-  <div class="banner muted">
-    <strong>{{ draft.dropped | length }} field{{ "s" if draft.dropped | length != 1 }} dropped.</strong>
-    {% for d in draft.dropped %}<code>{{ d.field }}</code>{{ ", " if not loop.last }}{% endfor %}
-    — no quote could be found for these, so they were left out rather than guessed at.
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Permission registry &middot; check before saving</p>
+      <h1>Check this before it is saved.</h1>
+      <p>This is what Gemini read out of <span class="mono">{{ filename }}</span>. Every quote below
+         has been checked against the page it claims. Correct anything that is wrong.</p>
+    </div>
   </div>
-{% endif %}
 
-<form method="post" action="/consents/save">
-  <input type="hidden" name="k" value="{{ k }}">
-  <input type="hidden" name="citations_json" value="{{ draft.citations | tojson }}">
-  <input type="hidden" name="source_doc_ref" value="{{ draft.source_doc_ref or '' }}">
+  <div class="tally" style="margin-top:22px;">
+    <span class="pill">{{ draft.page_count }} pages read</span>
+    <span class="pill">{{ draft.citations | length }} quotes checked</span>
+    {% if result.from_cache %}<span class="pill">from cache</span>
+    {% else %}<span class="pill">{{ "%.1f"|format(result.duration_s) }}s</span>{% endif %}
+    {% if result.repairs %}<span class="pill warn">{{ result.repairs }} repair</span>{% endif %}
+    {% if result.injection_suspected %}<span class="pill warn">the document tried to instruct us</span>{% endif %}
+  </div>
 
-  <section class="card">
-    {% macro cite(field) %}
-      {% set c = draft.citation_for(field) %}
-      {% if c %}
-        <blockquote>{{ c.quote }}<cite>page {{ c.page }}</cite></blockquote>
-      {% else %}
-        <p class="hint">No quote for this field.</p>
-      {% endif %}
-    {% endmacro %}
+  {% if draft.dropped %}
+    <div class="banner">
+      <strong>{{ draft.dropped | length }} field{{ "s" if draft.dropped | length != 1 }} dropped.</strong>
+      {% for d in draft.dropped %}<span class="mono">{{ d.field }}</span>{{ ", " if not loop.last }}{% endfor %}
+      &mdash; no quote could be found for these, so they were left out rather than guessed at.
+    </div>
+  {% endif %}
 
-    <label class="field">
-      <span class="label">Performer</span>
-      <input type="text" name="performer_name" value="{{ draft.performer_name }}" required>
-    </label>
-    {{ cite("performer_name") }}
+  <form method="post" action="/consents/save">
+    <input type="hidden" name="k" value="{{ k }}">
+    <input type="hidden" name="citations_json" value="{{ draft.citations | tojson }}">
+    <input type="hidden" name="source_doc_ref" value="{{ draft.source_doc_ref or '' }}">
 
-    <label class="field">
-      <span class="label">Studio granted the rights</span>
-      <input type="text" name="licensee" value="{{ draft.licensee }}" required>
-    </label>
-    {{ cite("licensee") }}
+    <div class="panel">
+      {% macro cite(field) %}
+        {% set c = draft.citation_for(field) %}
+        {% if c %}
+          <div class="cited">{{ c.quote }}<span class="pg">page {{ c.page }}</span></div>
+        {% else %}
+          <p class="uncited">No quote for this field.</p>
+        {% endif %}
+      {% endmacro %}
 
-    <fieldset class="field">
-      <span class="label">What is allowed</span>
-      {% for u in ["voice_synth", "face_replace", "full_replica", "archival_reuse"] %}
-        <label class="check">
-          <input type="checkbox" name="permitted_uses" value="{{ u }}"
-                 {{ "checked" if u in draft.permitted_uses }}>
-          {{ u | replace("_", " ") }}
+      <label class="field">
+        <span class="label">Performer</span>
+        <input type="text" name="performer_name" value="{{ draft.performer_name }}" required>
+      </label>
+      {{ cite("performer_name") }}
+
+      <label class="field">
+        <span class="label">Studio granted the rights</span>
+        <input type="text" name="licensee" value="{{ draft.licensee }}" required>
+      </label>
+      {{ cite("licensee") }}
+
+      <fieldset class="field">
+        <span class="label">What is allowed</span>
+        {% for u in ["voice_synth", "face_replace", "full_replica", "archival_reuse"] %}
+          <label class="check">
+            <input type="checkbox" name="permitted_uses" value="{{ u }}"
+                   {{ "checked" if u in draft.permitted_uses }}>
+            {{ u | replace("_", " ") }}
+          </label>
+        {% endfor %}
+        <span class="hint">Only tick something the contract expressly permits. A clause saying a
+           right is <em>not</em> granted is not a grant.</span>
+      </fieldset>
+      {{ cite("permitted_uses") }}
+
+      <label class="field">
+        <span class="label">Countries</span>
+        <input type="text" name="territories" value="{{ draft.territories | join(', ') }}"
+               placeholder="US, CA">
+        <span class="hint">Two-letter codes, comma separated. Or WORLDWIDE.</span>
+      </label>
+      {{ cite("territories") }}
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">Valid from</span>
+          <input type="date" name="valid_from" value="{{ draft.valid_from }}">
         </label>
-      {% endfor %}
-      <p class="hint">Only tick something the contract expressly permits. A clause saying a right is
-         <em>not</em> granted is not a grant.</p>
-    </fieldset>
-    {{ cite("permitted_uses") }}
+        <label class="field">
+          <span class="label">Valid to</span>
+          <input type="date" name="valid_to" value="{{ draft.valid_to }}">
+        </label>
+      </div>
+      {{ cite("valid_from") }}
 
-    <label class="field">
-      <span class="label">Countries</span>
-      <input type="text" name="territories" value="{{ draft.territories | join(', ') }}"
-             placeholder="US, CA">
-      <span class="hint">Two-letter codes, comma separated. Or WORLDWIDE.</span>
-    </label>
-    {{ cite("territories") }}
-
-    <div class="row">
       <label class="field">
-        <span class="label">Valid from</span>
-        <input type="date" name="valid_from" value="{{ draft.valid_from }}">
+        <span class="label">What triggers a payment</span>
+        <input type="text" name="compensation_trigger" value="{{ draft.compensation_trigger }}">
       </label>
-      <label class="field">
-        <span class="label">Valid to</span>
-        <input type="date" name="valid_to" value="{{ draft.valid_to }}">
-      </label>
-    </div>
-    {{ cite("valid_from") }}
+      {{ cite("compensation_trigger") }}
 
-    <label class="field">
-      <span class="label">What triggers a payment</span>
-      <input type="text" name="compensation_trigger" value="{{ draft.compensation_trigger }}">
-    </label>
-    {{ cite("compensation_trigger") }}
-
-    <div class="actions">
-      <button type="submit">Save this permission slip</button>
-      <a class="secondary" href="/consents/new{{ '?k=' ~ k if k }}">Start again</a>
+      <div class="actions">
+        <button class="btn" type="submit">Save this permission slip</button>
+        <a href="/consents/new{{ '?k=' ~ k if k }}">Start again</a>
+      </div>
     </div>
-  </section>
-</form>
+  </form>
+
+  <p class="disclaimer">Saving this row changes every later answer, in both directions. That is why
+     the model's reading is shown to a person here rather than written straight to the registry.</p>
+</div>
 {% endblock %}

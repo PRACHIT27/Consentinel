@@ -1,80 +1,113 @@
 {% extends "base.html" %}
-{% block title %}Registry — Consentinel{% endblock %}
+{% block title %}Permission Registry — Consentinel{% endblock %}
 
 {% block content %}
-{% if saved %}
-  <div class="banner ok" style="background:var(--ok-bg);color:var(--ok)">
-    <strong>Saved.</strong> <code>{{ saved }}</code> is now in the registry, and every later answer
-    will be checked against it.
+<div class="main-inner">
+  {% if saved %}
+    <div class="human-flag" style="margin-top:22px;">
+      Saved. <span class="mono">{{ saved }}</span> is in the registry now, and every later answer is
+      checked against it.
+    </div>
+  {% endif %}
+
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Permission registry</p>
+      <h1>Every signed grant, on record.</h1>
+      <p>The spine of the system. Add a contract and Consentinel reads it, fills in the fields, and
+         quotes the exact sentence behind each one.</p>
+    </div>
+    {% if k %}<a class="btn" href="/consents/new?k={{ k }}">+ Add permission slip</a>{% endif %}
   </div>
-{% endif %}
 
-<h1>Registry</h1>
-<p class="lead">Who we protect, and exactly what each studio is allowed to do with an AI copy of them.
-   Every answer this system gives is checked against these records.</p>
+  <div class="toolbar">
+    <input class="search" id="registrySearch" placeholder="Search performer or licensee&hellip;"
+           autocomplete="off">
+  </div>
 
-{% for row in rows %}
-  {% set p = row.performer %}
-  <section class="card">
-    <div class="card-head">
-      <h2>{{ p.name }}</h2>
-      {% if p.aliases %}<p class="sub">Also listed as {{ p.aliases | join(", ") }}</p>{% endif %}
+  <div class="register" id="registryTable">
+    <div class="reg-row head">
+      <div>Performer</div><div>Licensee</div><div>Grants</div><div>Territory</div><div>Status</div>
     </div>
 
-    {% if p.notes %}<p class="note">{{ p.notes }}</p>{% endif %}
+    {% for row in rows %}
+      {% for c in row.consents %}
+        {% set state, label = c | grant_state %}
+        {% set uses = c.permitted_uses | map('ev') | map('replace', '_', ' ') | join(', ') %}
+        <div class="reg-row"
+             data-search="{{ row.performer.name }} {{ c.licensee }}"
+             data-drawer-title="{{ row.performer.name }} &rarr; {{ c.licensee }}"
+             data-drawer-sub="REGISTRY ENTRY &middot; {{ c.id }}">
+          <div class="primary">{{ row.performer.name }}<span class="sub">
+            {%- if c.valid_to %}Through {{ c.valid_to.strftime('%b %Y') }}{% else %}No end date stated{% endif -%}
+          </span></div>
+          <div>{{ c.licensee }}</div>
+          <div>{{ uses or 'nothing' }}</div>
+          <div>{{ c.territories | join(', ') or '—' }}</div>
+          <div><span class="badge {{ state }}"><span class="dot"></span>{{ label }}</span></div>
 
-    {% if not row.consents %}
-      <p class="empty">No permission slips on file. Nothing may be generated of this performer.</p>
-    {% endif %}
+          <div data-drawer-body hidden>
+            <div class="drawer-section">
+              <h4>What this grant permits</h4>
+              <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+                {{ uses or 'Nothing. The contract is on file but grants no synthetic use.' }}
+                {% if c.territories %}&middot; {{ c.territories | join(', ') }}{% endif %}
+                {% if c.valid_from %}&middot; from {{ c.valid_from.strftime('%d %b %Y') }}{% endif %}
+                {% if c.valid_to %}to {{ c.valid_to.strftime('%d %b %Y') }}{% else %}&middot; no end date{% endif %}
+              </p>
+            </div>
 
-    {% for c in row.consents %}
-      <div class="grant">
-        <h3>{{ c.licensee }}</h3>
+            {% if c.compensation_trigger %}
+              <div class="drawer-section">
+                <h4>What triggers payment</h4>
+                <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+                  {{ c.compensation_trigger }}</p>
+              </div>
+            {% endif %}
 
-        <dl class="facts">
-          <dt>Allowed</dt>
-          <dd>
-            {% for u in c.permitted_uses %}
-              <span class="tag ok">{{ u | ev | replace("_", " ") }}</span>
-            {% else %}
-              <span class="tag muted">nothing</span>
-            {% endfor %}
-          </dd>
+            <div class="drawer-section">
+              <h4>What the contract actually says</h4>
+              {% for cit in c.clause_citations %}
+                <div class="clause-quote" style="margin-bottom:10px;">
+                  {{ cit.quote }}
+                  <span class="mono" style="display:block;margin-top:6px;font-size:0.72rem;opacity:0.8;">page {{ cit.page }}</span>
+                </div>
+              {% else %}
+                <p style="font-size:0.88rem; margin:0; color:var(--text-dim);">No quoted clause on
+                   file. Every grant added through the app carries one; this row was seeded.</p>
+              {% endfor %}
+            </div>
 
-          <dt>Countries</dt>
-          <dd>
-            {% for t in c.territories %}<span class="tag">{{ t }}</span>{% endfor %}
-            <span class="hint">and nowhere else</span>
-          </dd>
-
-          <dt>Dates</dt>
-          <dd>
-            {{ c.valid_from.date() if c.valid_from else "—" }}
-            to
-            {{ c.valid_to.date() if c.valid_to else "—" }}
-          </dd>
-
-          {% if c.compensation_trigger %}
-          <dt>Payment</dt>
-          <dd>{{ c.compensation_trigger }}</dd>
-          {% endif %}
-        </dl>
-
-        {% if c.clause_citations %}
-          <details open>
-            <summary>What the contract actually says</summary>
-            {% for q in c.clause_citations %}
-              <blockquote>
-                {{ q.quote }}
-                <cite>page {{ q.page }}</cite>
-              </blockquote>
-            {% endfor %}
-          </details>
-        {% endif %}
-      </div>
+            <div class="drawer-section">
+              <h4>Why it matters</h4>
+              <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+                {% if state == 'expired' %}
+                  This grant has lapsed, so any use relying on it is now unauthorised &mdash; the
+                  paperwork looks identical to a live grant until someone checks the date.
+                {% elif state == 'expiring' %}
+                  Under 90 days left. Renew it or every use under it stops being covered.
+                {% else %}
+                  Both directions answer against this row: a sweep hit is allowed only if it falls
+                  inside these uses and territories, and so is our own footage.
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="reg-row">
+          <div class="primary">{{ row.performer.name }}<span class="sub">No grant on file</span></div>
+          <div>—</div><div>nothing</div><div>—</div>
+          <div><span class="stamp orange">no grant</span></div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-row">The registry is empty. Run <span class="mono">python -m consentinel.seed</span>.</div>
     {% endfor %}
-  </section>
-{% else %}
-  <p class="empty">The registry is empty. Run <code>python -m consentinel.seed</code>.</p>
-{% endfor %}
+  </div>
+
+  <p class="disclaimer">Every answer this system gives resolves against these records, which is why a
+     person confirms each one before it is saved. Demo data throughout &mdash; Mira Vance and Halcyon
+     Pictures are invented.</p>
+</div>
 {% endblock %}
