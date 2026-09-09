@@ -35,8 +35,8 @@ from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_
 from consentinel.agents.consent_ingest import PROMPT_VERSION
 from consentinel.audit import FirestoreAudit
 from consentinel.cache import FirestoreCache
-from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.harness.ports import HarnessDeps
+from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
 from web import security
