@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.5.0`**
+**Doc set version: `v2.6.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,53 @@ commit.
 
 Newest first.
 
+## v2.6.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md`, plus `infra/iam/`
+**Type:** MINOR
+
+**WU-34 is done, and one claim we were about to make turned out to be false.**
+
+**Least privilege restored.** `roles/aiplatform.user` has been removed from `consentinel-web@`.
+The earlier failure was IAM propagation, not an insufficient role - waiting 90 seconds and cycling
+the instances made the single-permission custom role work on its own. `consentinel-web@` now holds
+exactly two things: `roles/datastore.user` and `consentinelModelInvoker`, whose entire content is
+`aiplatform.endpoints.predict`. Verified live: the contract reads in 9 seconds.
+
+**Six service accounts** created by `infra/iam/01_service_accounts.sh`. Worth noting which ends up
+weakest: `consentinel-triage`, the one component that reads attacker-controlled pages. It gets the
+model permission and **Firestore read-only**, and nothing else - no secrets, no storage, no writes.
+
+**Three buckets** by `infra/iam/02_buckets.sh`. Evidence is versioned and write-once, uploads are
+normal, derived expires after 7 days because everything in it is regenerable.
+
+**The correction.** We were going to say "no principal in the system can delete evidence", on the
+strength of granting `objectCreator` rather than `objectAdmin`. That is **not true from IAM**. The
+bucket carries legacy `projectOwner` and `projectEditor` bindings that include object deletion, so
+both of us could delete evidence - and a bucket retention period did not stop it either. A project
+owner deleted a fresh object twice, and objects were not picking up a retention expiry at all.
+
+What does work is a **default event-based hold** on the bucket. Every new object arrives held, and a
+held object refuses deletion explicitly:
+
+```
+403: Object is under active Event-Based hold and cannot be deleted,
+     overwritten or archived until hold is removed
+```
+
+Tested as project owner, which is the most privileged identity we have. `02_buckets.sh` now ends
+with a self-test that writes an object, tries to delete it, and fails loudly if the delete succeeds -
+so this cannot quietly regress.
+
+Holds are also the reversible choice. Locking a retention policy is permanent: it cannot be
+shortened or removed and the bucket cannot be deleted until every object ages out. A hold can be
+released deliberately.
+
+**For the demo:** the line to say is "evidence is held on write, and a project owner cannot delete
+it" - and you can show the 403. Do not say "IAM prevents deletion", because it does not.
+
+**Action required:**
+- The one honest caveat left: `consentinel-web@` can still call a model, because `consent_ingest`
+  runs in-process until Agent Runtime exists (WU-24). Everything else is as designed
 ## v2.5.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `DESIGN.md`, plus `infra/iam/model_invoker_role.yaml` and the deployed service
 **Type:** MINOR
