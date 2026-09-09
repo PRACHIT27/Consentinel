@@ -569,3 +569,21 @@ def test_the_enforcement_output_path_runs_from_finding_to_draft(tmp_path):
     assert dossier.sendable is False
     # .get, because the harness writes its own envelope rows alongside ours
     assert {e.get("event") for e in audit.events} >= {"snapshot", "dossier"}
+
+
+def test_the_clause_is_found_whichever_key_it_was_stored_under():
+    """Everything that writes a citation writes `quote`; this module read only
+    `text`. Nothing failed — the case file just rendered "no clause to quote"
+    under a verdict that was entirely about one clause."""
+    from consentinel.agents.dossier_writer import _first_citation
+    from consentinel.store.base import Consent
+
+    stored_as_quote = Consent(id="c1", performer_id="p1", licensee="Halcyon",
+                              clause_citations=[{"quote": "The sentence.", "page": 4}])
+    stored_as_text = Consent(id="c2", performer_id="p1", licensee="Halcyon",
+                             clause_citations=[{"text": "The sentence.", "page": 4}])
+
+    for consent in (stored_as_quote, stored_as_text):
+        found = _first_citation(consent, None)
+        assert found["text"] == "The sentence."
+        assert found["page"] == 4

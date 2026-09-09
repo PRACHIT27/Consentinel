@@ -223,8 +223,18 @@ def _first_citation(consent: Consent,
     if override:
         return {"text": override, "page": None}
     for citation in consent.clause_citations or []:
-        if isinstance(citation, dict) and citation.get("text"):
-            return citation
+        if not isinstance(citation, dict):
+            continue
+        # Either key. Everything that *writes* a citation writes `quote` —
+        # `fixtures/seed.json`, `consent_ingest.to_consent`, the registry
+        # screen — and this looked only for `text`, so the clause in every real
+        # case file came out empty. Nothing failed; the section just rendered
+        # "no clause to quote" under a verdict that was entirely about one
+        # clause. Reading both is the small fix; the alternative is renaming a
+        # field in the frozen contract.
+        quote = citation.get("quote") or citation.get("text")
+        if quote:
+            return {"text": quote, "page": citation.get("page")}
     return {}
 
 

@@ -663,25 +663,34 @@ def run_sweep(request: Request, k: Optional[str] = Form(None)):
 # no from the domain object rather than from a button nobody added yet (FR-5.5).
 
 
-def _verdict_of(finding) -> "object":
-    """Rebuild the verdict object from the stored row.
+def _verdict_of(finding, consents) -> "object":
+    """Re-decide the verdict from the registry as it stands right now.
 
-    The dossier builder wants a `VerdictResult` and the registry stores the
-    three fields a verdict owns. Rebuilding beats storing the whole object:
-    the row stays the frozen contract's shape, and anything the builder needs
-    beyond those fields is a sign the finding is missing something.
+    Not rebuilt from the stored row, and the reason is the rule that says
+    verdicts are never cached (hard rule 7): they derive from a registry that
+    changes, so they are recomputed on read. A case file drafted against a
+    grant that lapsed last week should say so.
+
+    It also recovers something the row cannot hold. `Finding` has
+    `matched_consent_id` and no field for the grant a use *breached* — so a
+    territory breach stored `None`, and the case file's headline section came
+    out as "no clause to quote" for a verdict that was entirely about one
+    clause. Re-evaluating gives back `breached_consent_id`, which is what the
+    bundle builder looks up. Adding the field to the frozen contract would be
+    the other fix, and it needs all three of us to agree.
     """
-    from consentinel.agents.reconciler import VerdictResult
+    from consentinel.agents.reconciler import Observation, evaluate
 
-    return VerdictResult(
-        verdict=finding.verdict,
-        check="recorded",
-        reason=finding.reasoning or "",
-        matched_consent_id=finding.matched_consent_id,
-        breached_consent_id=None,
-        citation=finding.evidence_quote,
-        territories_outside=tuple(finding.target_territories or ()),
+    observation = Observation(
+        performer_id=finding.performer_id,
+        depicts_named_person=True,          # it is on file as being about them
+        modality=enum_value(finding.modality),
+        target_territories=tuple(finding.target_territories or ()),
+        actor=None,
+        confidence=float(finding.confidence or 0.0),
+        evidence_quote=finding.evidence_quote,
     )
+    return evaluate(observation, consents)
 
 
 @app.post("/findings/{finding_id}/dossier")
@@ -698,7 +707,8 @@ def build_dossier(finding_id: str, k: Optional[str] = Form(None)):
                       if p.id == finding.performer_id), None)
     consents = [c for p in store.list_performers() for c in store.list_consents(p.id)]
 
-    bundle = build_bundle(finding, performer, _verdict_of(finding), consents=consents)
+    bundle = build_bundle(finding, performer, _verdict_of(finding, consents),
+                          consents=consents)
     result = DossierWriter(deps=HarnessDeps(
         audit=get_audit(), cache=get_cache(), armor=get_armor(),
         tracer=tracer, metrics=metrics,
