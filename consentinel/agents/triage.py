@@ -47,6 +47,8 @@ from consentinel.agents.validators import (
     extraction_validators,
     is_reviewable,
 )
+from consentinel.demo_mode import is_enabled as _demo_mode_enabled
+from consentinel.demo_mode import miss as _demo_miss
 from consentinel.harness import (
     FailState,
     Harness,
@@ -186,6 +188,7 @@ class Triage:
     generate: Optional[Generate] = None
     model: str = DEFAULT_MODEL
     max_page_chars: int = MAX_PAGE_CHARS
+    demo_mode: Optional[bool] = None   # None -> read DEMO_MODE at call time
     timeout_s: float = 60.0
     max_attempts: int = 2
     sleep: Callable[[float], None] = time.sleep
@@ -249,6 +252,11 @@ class Triage:
         payload = build_payload(snapshot, performer, page_text, fence)
 
         def invoke(repair_hint: Optional[str]) -> TriageExtraction:
+            if _demo_mode_enabled(self.demo_mode):
+                # WU-20: the model is an external client like any other. A
+                # cold cache resolves to ambiguous, never to a guess.
+                raise _demo_miss(AGENT_NAME, self._cache_key(page_text))
+
             prompt = payload
             if repair_hint:
                 # The repair hint is ours, not the page's, and it goes outside

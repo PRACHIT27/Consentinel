@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.8`**
+**Doc set version: `v2.0.9`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,65 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.9 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code and one new script
+**Type:** PATCH
+
+**WU-14 and WU-20 are done. 401 passing (48 new).** My P0 lane is now clear except WU-24
+(deployments), WU-31 (evalsets) and WU-37 (the evidence pack).
+
+### WU-14 — `consentinel/reliability.py`
+
+**It does not reimplement anything.** Classification, backoff and the circuit breaker were built in
+WU-00 and every agent already runs through the harness; a second retry loop would make three
+attempts into nine and turn one rate limit into an outage. The module re-exports the one
+implementation and adds what the harness lacks:
+
+- `POLICY` — DESIGN §2's table as *data*, so the docs, the UI and the code cannot drift. A test
+  asserts the published numbers are the real ones.
+- `call()` — the same policy for external calls that are not agents (a store write, a bucket
+  upload). It raises rather than swallowing, because only the caller knows whether a failure is a
+  finding (`ambiguous`), an asset (`unverified`) or a sweep (`degraded`).
+- `record_tool_call()` — the `audit_log.tool_calls` row WU-14 asks for: attempts, retry count,
+  latency, tokens.
+- **`SweepGuard`** — the real addition. The harness makes one *call* fail safely; nothing made one
+  *sweep* fail visibly. Twenty batches could each fail safely and produce an empty result set that
+  renders exactly like "nothing out there". Now consecutive provider failures open a breaker, the
+  remaining batches are **skipped rather than attempted**, and `SweepReport.abort_reason` says
+  "this is not an empty result — we could not look".
+
+`SweepReport` gained `aborted` and `abort_reason`. `TextSweep(abort_after=N)` sets the threshold.
+
+### WU-20 — `consentinel/demo_mode.py` and `tools/warm_demo_cache.py`
+
+`DEMO_MODE` was honoured by `parallel_search` and `fetch_page` only. It now covers **every** external
+client — Parallel, Web Risk, page fetches and **Gemini** (Triage) — from one module, so there is one
+flag, one error type and one wording. Each client takes the same three-state `demo_mode` field:
+`True`, `False`, or `None` meaning "read the environment".
+
+- **The acceptance test unplugs the network rather than trusting it.** In the demo phase every
+  client is replaced with one that raises `AssertionError` if called, so the pipeline either runs
+  from cache or the test fails. The run is the real chain: plan → sweep → web risk → fetch → triage
+  → verdict.
+- **A miss is loud and is not permission.** The message names the tool, the cache key, the warm
+  script and the way to switch the flag off. `fetch_page` now folds that sentence into its refusal
+  reason — otherwise a cold demo cache reads as "Google says this is malware" when the cause is an
+  unwarmed cache. (`UrlRisk` has no field for a reason, and adding one is a contract change.)
+- **`tools/warm_demo_cache.py`** runs the real pipeline once and writes every answer to
+  `CACHE_DIR`. `--check` replays it with `DEMO_MODE=true` and prints `WARM` or `COLD`, so nobody has
+  to hope. Verdicts are deliberately absent from the cache (hard rule 7) but still computed during
+  warming, so a crash shows up now rather than on camera.
+
+**Action required:**
+- **Prachit, WU-19:** the script ships a `JsonFileCache` *inside `tools/`* as a stopgap so it works
+  today. When your cache lands, pass it via `HarnessDeps(cache=...)` and delete that class — I kept
+  it out of `consentinel/cache/` precisely so it is not in your way.
+- **Swara, before filming:** run `python tools/warm_demo_cache.py`, then
+  `--check` until it prints `WARM`, then set `DEMO_MODE=true` in `.env`. The shoot then cannot fail
+  on a rate limit
+- Still open: OQ-6, the Web Risk API on the project, and the Parallel key (nothing has been called
+  live yet)
 
 ## v2.0.8 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`

@@ -41,6 +41,9 @@ from typing import Any, Callable, Optional, Protocol, Sequence
 
 from consentinel.harness import FailState, Harness, HarnessDeps, HarnessPolicy
 from consentinel.harness.result import HarnessResult
+from consentinel.demo_mode import DemoModeMiss as _DemoModeMiss
+from consentinel.demo_mode import is_enabled as _demo_mode_enabled
+from consentinel.demo_mode import miss as _demo_miss
 from consentinel.store.base import Locale
 from consentinel.tools.contracts import SearchResponse, SearchResult
 
@@ -71,14 +74,9 @@ log = logging.getLogger("consentinel.parallel_search")
 readable line per call."""
 
 
-class DemoModeMiss(RuntimeError):
-    """`DEMO_MODE=true` and nothing cached for this call.
-
-    Classified permanent, so it resolves to a degraded response instead of
-    reaching the network. The demo must run from cache with zero external calls
-    (CLAUDE.md, Demo safety) — a silent live call at 1am is the failure mode
-    this exists to prevent.
-    """
+DemoModeMiss = _DemoModeMiss
+"""Re-exported for callers that catch it by name. The definition lives in
+`consentinel.demo_mode` so every client raises the same type — WU-20."""
 
 
 class SearchClient(Protocol):
@@ -159,9 +157,7 @@ class ParallelSearch:
         return self.client
 
     def _in_demo_mode(self) -> bool:
-        if self.demo_mode is not None:
-            return self.demo_mode
-        return os.environ.get("DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
+        return _demo_mode_enabled(self.demo_mode)
 
     # ------------------------------------------------------------------
 
@@ -228,10 +224,7 @@ class ParallelSearch:
             _warn_on_query_shape(queries)
 
             if self._in_demo_mode():
-                raise DemoModeMiss(
-                    f"DEMO_MODE=true and no cached result for {cache_key}; "
-                    "refusing to call the network"
-                )
+                raise _demo_miss(TOOL_NAME, cache_key)
 
             self.harness.guard_tool(TOOL_NAME)
 

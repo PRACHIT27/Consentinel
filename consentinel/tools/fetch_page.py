@@ -41,6 +41,8 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
 
+from consentinel.demo_mode import is_enabled as _demo_mode_enabled
+from consentinel.demo_mode import miss as _demo_miss
 from consentinel.harness import FailState, Harness, HarnessDeps, HarnessPolicy
 from consentinel.store.base import FindingStatus, Locale
 from consentinel.tools.contracts import PageSnapshot, UrlRisk
@@ -364,9 +366,7 @@ class PageFetcher:
         return self.risk
 
     def _in_demo_mode(self) -> bool:
-        if self.demo_mode is not None:
-            return self.demo_mode
-        return os.environ.get("DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
+        return _demo_mode_enabled(self.demo_mode)
 
     def _client(self) -> httpx.Client:
         """No cookies, no credentials, no environment trust.
@@ -413,10 +413,15 @@ class PageFetcher:
         if web_risk_enabled():
             risk = self._risk().check(url, subject_id=subject_id)
             if not risk.safe:
-                return self._refused(
-                    url, locale, subject_id,
-                    f"web risk: {', '.join(risk.threats) or 'unsafe'}",
-                    risk=risk, started=started)
+                reason = f"web risk: {', '.join(risk.threats) or 'unsafe'}"
+                if "CHECK_FAILED" in risk.threats and self._in_demo_mode():
+                    # Otherwise the refusal reads as "Google says this is
+                    # malware" when the real cause is a cold cache. `UrlRisk`
+                    # has no field for a reason, and adding one is a contract
+                    # change, so the caller who *does* know says it.
+                    reason += (f" — {_demo_miss('web_risk_check', url)}")
+                return self._refused(url, locale, subject_id, reason,
+                                     risk=risk, started=started)
         else:
             log.warning("%s: WEB_RISK_ENABLED=false — fetching %s unchecked",
                         TOOL_NAME, url)
@@ -434,9 +439,9 @@ class PageFetcher:
 
         def invoke(_hint: Optional[str]) -> PageSnapshot:
             if self._in_demo_mode():
-                raise FetchFailed(
-                    f"DEMO_MODE=true and no cached page for {url}; "
-                    "refusing to call out")
+                # FetchFailed, not FetchRefused: we did not decline the
+                # address, we declined to leave the cache.
+                raise FetchFailed(str(_demo_miss(TOOL_NAME, url)))
             self.harness.guard_tool(TOOL_NAME)
             try:
                 return self._get(url, locale, details)

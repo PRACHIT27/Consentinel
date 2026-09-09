@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Protocol
 
+from consentinel.demo_mode import is_enabled as _demo_mode_enabled
+from consentinel.demo_mode import miss as _demo_miss
 from consentinel.harness import FailState, Harness, HarnessDeps, HarnessPolicy
 from consentinel.tools.contracts import UrlRisk
 
@@ -63,6 +65,7 @@ class WebRiskCheck:
     timeout_s: float = 10.0
     max_attempts: int = 1
     cache_ttl_s: int = CACHE_TTL_S
+    demo_mode: Optional[bool] = None   # None -> read DEMO_MODE at call time
     sleep: Callable[[float], None] = time.sleep
     _harness: Optional[Harness] = field(default=None, repr=False, compare=False)
 
@@ -102,6 +105,12 @@ class WebRiskCheck:
             return self._refuse(url, "empty url", subject_id)
 
         def invoke(_hint: Optional[str]) -> tuple[bool, tuple[str, ...]]:
+            if _demo_mode_enabled(self.demo_mode):
+                # WU-20. Note where this lands: an unanswerable check is
+                # unsafe, so a cold cache in demo mode skips the page rather
+                # than opening it. Loud, and still not permission.
+                raise _demo_miss(TOOL_NAME, url)
+
             from google.cloud import webrisk_v1  # noqa: PLC0415
 
             threat_types = [getattr(webrisk_v1.ThreatType, name)
