@@ -20,6 +20,7 @@ The prompt lives in `instructions.py` and the checks live in `guardrail.py`.
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -213,4 +214,39 @@ def to_consent(draft: ConsentDraft, *, consent_id: str, performer_id: str) -> Co
         compensation_trigger=draft.compensation_trigger or None,
         clause_citations=[{"quote": c["quote"], "page": c["page"]} for c in draft.citations],
         source_doc_ref=draft.source_doc_ref,
+    )
+
+
+# --------------------------------------------------------------------------
+# ADK wiring
+# --------------------------------------------------------------------------
+
+def build_agent(model: Optional[str] = None, *, instruction: Optional[str] = None) -> Any:
+    """The ADK `LlmAgent` for the contract read — WU-24 deploys this.
+
+    With `output_schema` set, ADK refuses tools and agent transfer outright — so
+    "no free-form output channel, no capability" becomes a property of the
+    runtime rather than a promise in a prompt. That matters here: this agent
+    reads a document someone else wrote.
+
+    `ConsentOut` mirrors `instructions.RESPONSE_SCHEMA`, which is what the app's
+    own Gemini call uses. A test asserts the two stay in step.
+    """
+    from google.adk.agents import LlmAgent
+    from google.genai import types
+
+    from consentinel.agents.consent_ingest.instructions import ConsentOut
+
+    return LlmAgent(
+        name="ConsentIngest",
+        model=model or os.environ.get("CONSENTINEL_MODEL", "gemini-2.5-flash"),
+        instruction=instruction or INSTRUCTION.format(uses=", ".join(USES)),
+        output_schema=ConsentOut,
+        output_key="permission_slip",
+        include_contents="none",       # one contract, one reading, no history
+        disallow_transfer_to_parent=True,
+        disallow_transfer_to_peers=True,
+        generate_content_config=types.GenerateContentConfig(
+            temperature=POLICY.temperature,
+        ),
     )

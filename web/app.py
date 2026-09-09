@@ -41,6 +41,7 @@ from consentinel.agents.clearance import Declaration, check_asset, to_asset
 from consentinel.agents.clearance import PROMPT_VERSION as CLEARANCE_PROMPT_VERSION
 from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_consent
 from consentinel.agents.consent_ingest import PROMPT_VERSION
+from consentinel.agents.query_planner import DEFAULT_LOCALES
 from consentinel.audit import FirestoreAudit
 from consentinel.cache import FirestoreCache
 from consentinel.harness.ports import HarnessDeps
@@ -283,13 +284,16 @@ def overview(request: Request, k: Optional[str] = None):
 
     live = [c for c in consents if grant_state(c)[0] != "expired"]
     open_findings = [f for f in findings if enum_value(f.verdict) == "unauthorized"]
-    locales = {f.discovered_locale for f in findings if f.discovered_locale}
 
     stats = {
         "grants": len(live),
         "open_findings": len(open_findings),
         "assets_checked": sum(1 for a in assets if enum_value(a.clearance_state) != "unverified"),
-        "languages": len({loc.split("-")[0] for loc in locales}) or 1,
+        # The sweep's own locale list, not a count of what the findings happen
+        # to contain. Counting findings made this tile read "2" while the
+        # planner searches five languages, which understates the thing and
+        # invites the question of which number is real.
+        "languages": len({loc.language for loc in DEFAULT_LOCALES}),
     }
 
     # Recent activity mixes both directions, worst first, because a breach is

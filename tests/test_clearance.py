@@ -246,3 +246,30 @@ def test_the_same_file_hashes_the_same_way(note, grant):
 
 def test_wav_and_mp4_are_both_accepted():
     assert "audio/wav" in ACCEPTED_MIME and "video/mp4" in ACCEPTED_MIME
+
+
+# ------------------------------------------------- the schema written twice
+
+
+def test_the_pydantic_model_and_the_json_schema_ask_for_the_same_answer():
+    """WU-24 needs the shape as a Pydantic model, because ADK's `LlmAgent`
+    takes nothing else. The app's own call uses the JSON Schema dict. Two
+    definitions of one shape drift, so this fails when they do.
+
+    Fix the mismatch, not the test.
+    """
+    from consentinel.agents.clearance.instructions import RESPONSE_SCHEMA, MediaRead
+
+    assert set(MediaRead.model_fields) == set(RESPONSE_SCHEMA["properties"])
+
+
+def test_the_deployed_clearance_agent_holds_no_tools_and_cannot_transfer():
+    """With `output_schema` set, ADK refuses tools and agent transfer. That is
+    what makes "the model can only fill in these four fields" a property of the
+    runtime rather than a line in a prompt."""
+    from consentinel.agents.clearance.agent import build_agent
+
+    agent = build_agent()
+    assert agent.tools == []
+    assert agent.output_schema is not None
+    assert agent.disallow_transfer_to_parent and agent.disallow_transfer_to_peers

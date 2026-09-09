@@ -33,6 +33,7 @@ The prompt lives in `instructions.py`; what can reject an answer lives in
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional, Sequence
@@ -319,3 +320,34 @@ def _detected(value: Optional[str]) -> Optional[Modality]:
         return Modality((value or "").strip().lower())
     except ValueError:
         return None
+
+
+# --------------------------------------------------------------------------
+# ADK wiring
+# --------------------------------------------------------------------------
+
+def build_agent(model: Optional[str] = None, *, instruction: Optional[str] = None) -> Any:
+    """The ADK `LlmAgent` for the media read — WU-24 deploys this.
+
+    This is the only model call in the clearance path, and `output_schema` is
+    what keeps it that narrow: with it set, ADK refuses tools and transfer, so
+    the step can do nothing but fill in `MediaRead`. It cannot reach the
+    registry, which is precisely why its answer can withhold clearance but
+    never grant it.
+    """
+    from google.adk.agents import LlmAgent
+    from google.genai import types
+
+    from consentinel.agents.clearance.instructions import MediaRead
+
+    return LlmAgent(
+        name="ClearanceInspector",
+        model=model or os.environ.get("CONSENTINEL_MODEL", "gemini-2.5-flash"),
+        instruction=instruction or INSTRUCTION,
+        output_schema=MediaRead,
+        output_key="media_read",
+        include_contents="none",       # one file, one reading, no history
+        disallow_transfer_to_parent=True,
+        disallow_transfer_to_peers=True,
+        generate_content_config=types.GenerateContentConfig(temperature=POLICY.temperature),
+    )

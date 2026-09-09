@@ -75,3 +75,18 @@ ACCEPTED_MIME = {
 # through the Files API, which is not built — so we refuse with a clear reason
 # instead of failing deep inside the client.
 MAX_INLINE_BYTES = 18 * 1024 * 1024
+
+
+# The same shape as `RESPONSE_SCHEMA`, as a Pydantic model, because ADK's
+# `LlmAgent` takes only that. The dict is what the app's own call uses; the
+# model is what runs on Agent Engine (WU-24). A test fails if their fields
+# drift apart.
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class MediaRead(BaseModel):
+    modality: str = Field(description="voice, face, performance, or none")
+    human_present: bool = Field(description="true only if a person is audible or visible")
+    description: str = Field(description="one plain sentence, at most 200 characters")
+    confidence: float = Field(description="0 to 1, how sure you are of modality")

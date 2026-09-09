@@ -237,3 +237,21 @@ def test_gemini_does_not_grant_a_right_the_contract_withholds():
     assert set(d.territories) == {"US", "CA"}
     assert d.valid_from == "2026-01-01" and d.valid_to == "2028-12-31"
     assert d.citations, "no citations at all"
+
+
+def test_the_pydantic_model_and_the_json_schema_ask_for_the_same_answer():
+    """WU-24 deploys this agent to Agent Engine, and ADK's `LlmAgent` takes
+    only a Pydantic model. The app's own Gemini call uses the JSON Schema dict.
+    Two definitions of one shape drift, so this fails when they do."""
+    from consentinel.agents.consent_ingest.instructions import RESPONSE_SCHEMA, ConsentOut
+
+    assert set(ConsentOut.model_fields) == set(RESPONSE_SCHEMA["properties"])
+
+
+def test_the_deployed_ingest_agent_holds_no_tools_and_cannot_transfer():
+    from consentinel.agents.consent_ingest.agent import build_agent
+
+    agent = build_agent()
+    assert agent.tools == []
+    assert agent.output_schema is not None
+    assert agent.disallow_transfer_to_parent and agent.disallow_transfer_to_peers
