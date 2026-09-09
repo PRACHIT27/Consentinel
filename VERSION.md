@@ -107,6 +107,24 @@ commit.
 
 Newest first.
 
+## v2.1.1 - 2026-09-08 - Prachit (with Claude)
+**Files:** `notion/stories.csv`, `notion/tasks.csv`
+**Type:** PATCH
+
+Statuses brought up to date, verified against main, the live URL and the open PRs.
+
+**8 of 61 stories done, 2 in progress. 7 of 38 tasks done - 16.5 of 85.5 hours, about 19%.**
+Prachit 6/13, Vedant 1/23, Swara 0/2.
+
+The Notion board export had 67 rows for 43 unique cards, because the CSV was imported three times,
+and the export had lost every property except Name and Epic. Regenerating from the repo rather than
+trying to de-duplicate the board: the repo is canonical for *what a task is*, so a fresh import is
+both correct and faster.
+
+**Action required:**
+- Swara: delete the existing board and import these two files into fresh databases. Do not merge
+  into the current one - it has triplicate cards and no status, assignee or estimate columns
+
 ## v2.0.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `consentinel/store/base.py`, `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `DESIGN.md`
 **Type:** MAJOR - frozen-contract change
