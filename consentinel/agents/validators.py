@@ -32,6 +32,20 @@ from consentinel.harness import ValidationError
 from consentinel.store.base import WORLDWIDE, Modality, Performer
 from consentinel.tools.contracts import TriageExtraction
 
+VALIDATORS_VERSION = "v2"
+"""Bump when a check changes, because it is part of the cache key.
+
+A cached extraction was validated by whatever rules existed when it was
+written. If a validator gets *stricter*, a cache hit would keep serving an
+answer the new rule rejects — which is exactly what happened when
+`_names_match` was tightened: the first live sweep's bogus verdicts survived
+the fix, because the extraction behind them came from cache and the validators
+never ran again. `prompt_version` is in the key for the same reason (hard rule
+8); the validator set belongs there too.
+
+v1 -> v2: a bare single name no longer matches a full performer name.
+"""
+
 MIN_CONFIDENCE = 0.0
 MAX_CONFIDENCE = 1.0
 
@@ -108,25 +122,44 @@ def check_person_name_matches(extraction: TriageExtraction,
 
 
 def _names_match(found: str, candidate: str) -> bool:
-    """Deliberately loose, and only loose in safe directions.
+    """Loose about spelling, strict about identity.
 
     Case, accents, punctuation and initials vary between a legal name and how a
-    marketplace listing writes it: "M. Vance", "mira vance", "MIRA VANCE".
-    Matching on the surname plus a first initial catches those. What it will not
-    do is match a different surname, which is the failure that matters.
+    marketplace writes it: "M. Vance", "mira vance", "MIRA VANCE", "Mira V.".
+    Surname plus first initial catches all of those.
+
+    **A bare single name never matches a full one**, and that is the whole
+    reason this function was rewritten. The first version accepted a substring,
+    so `"Mira"` matched the performer `"Mira Vance"` — and the first live sweep
+    duly returned an `unauthorized` verdict, with a citation, against an
+    unrelated phone app called Mira. Asserting an infringement about the wrong
+    entity is the single worst thing this product can do, and a substring test
+    is how you get there.
     """
     a, b = _name_key(found), _name_key(candidate)
     if not a or not b:
         return False
-    if a == b or a in b or b in a:
+    if a == b:
         return True
 
     a_parts, b_parts = a.split(), b.split()
-    if not a_parts or not b_parts:
+    if len(a_parts) < 2 or len(b_parts) < 2:
+        # One of them is a single word. "Mira" is a product name; "Mira Vance"
+        # is a person. Only an exact match counts, which the equality above
+        # already handled — so a mononym performer still works.
         return False
-    if a_parts[-1] != b_parts[-1]:
-        return False                      # different surname: not the same person
-    return a_parts[0][:1] == b_parts[0][:1]
+
+    if not _token_match(a_parts[-1], b_parts[-1]):
+        return False                      # different surname: different person
+    return _token_match(a_parts[0], b_parts[0])
+
+
+def _token_match(x: str, y: str) -> bool:
+    """Equal, or one is the other's initial — "m" for "mira", "v" for "vance"."""
+    if x == y:
+        return True
+    return ((len(x) == 1 and y.startswith(x))
+            or (len(y) == 1 and x.startswith(y)))
 
 
 def _name_key(name: str) -> str:

@@ -71,7 +71,7 @@ PAGE = PageSnapshot(url=URL, text=f"Clone de voz IA\n{QUOTE}\nEntrega no Brasil.
 
 def verdict():
     return evaluate(Observation(
-        performer_id="perf_mira", modality="voice",
+        performer_id="perf_mira", depicts_named_person=True, modality="voice",
         target_territories=("BR",), actor="VozClone Studio", confidence=0.93,
         evidence_quote=QUOTE), [GRANT], NOW)
 
@@ -374,7 +374,7 @@ def test_no_notice_is_drafted_for_an_ambiguous_finding(tmp_path):
     """Drafting a takedown for a finding we could not judge would put the doubt
     in an envelope."""
     ambiguous = evaluate(Observation(
-        performer_id="perf_mira", modality="voice",
+        performer_id="perf_mira", depicts_named_person=True, modality="voice",
         target_territories=("BR",), actor="VozClone Studio", confidence=0.3,
         evidence_quote=QUOTE), [GRANT], NOW)
     b = build_bundle(FINDING, MIRA, ambiguous, consents=[GRANT])

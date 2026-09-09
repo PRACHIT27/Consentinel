@@ -260,6 +260,7 @@ def _extraction(raw: dict[str, Any]) -> TriageExtraction:
 def _observation(raw: dict[str, Any]) -> Observation:
     return Observation(
         performer_id=raw["performer_id"],
+        depicts_named_person=bool(raw.get("depicts_named_person", True)),
         modality=raw.get("modality"),
         target_territories=tuple(raw.get("target_territories", [])),
         actor=raw.get("actor"),

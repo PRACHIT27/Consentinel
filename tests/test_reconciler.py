@@ -19,6 +19,7 @@ import pytest
 
 from consentinel.agents.reconciler import (
     ACTOR_NOT_LICENSEE,
+    PERFORMER_NOT_IDENTIFIED,
     ACTOR_UNKNOWN,
     CONFIDENCE_BELOW_THRESHOLD,
     COVERED_BY_GRANT,
@@ -61,6 +62,9 @@ def grant(**kw: Any) -> Consent:
 def observe(**kw: Any) -> Observation:
     base = dict(
         performer_id="perf_mira",
+        # Stated explicitly: since the first live sweep, a verdict requires
+        # that the page actually names the performer.
+        depicts_named_person=True,
         modality="voice",
         target_territories=("US",),
         actor="Aurora Studios",
@@ -431,8 +435,9 @@ def test_the_observation_has_no_way_to_carry_page_text():
     assert "page_text" not in fields
     assert "text" not in fields
     assert "snapshot" not in fields
-    assert fields == {"performer_id", "modality", "target_territories",
-                      "actor", "confidence", "evidence_quote"}
+    assert fields == {"performer_id", "depicts_named_person", "modality",
+                      "target_territories", "actor", "confidence",
+                      "evidence_quote"}
 
 
 def test_nothing_in_this_module_writes_to_a_cache():
@@ -532,3 +537,35 @@ def test_the_enforcement_path_runs_end_to_end_from_an_extraction():
     assert result.check == TERRITORY_OUTSIDE_GRANT
     assert result.territories_outside == ("BR",)
     assert result.to_finding_fields()["evidence_quote"] == QUOTE
+
+def test_a_page_that_does_not_name_the_performer_gets_no_verdict():
+    """The gap the first live sweep exposed: a generic voice-cloning product
+    page names nobody, so the name check passes vacuously and the engine would
+    otherwise answer "is this covered by her grants?" about a page that has
+    nothing to do with her."""
+    result = evaluate(observe(depicts_named_person=False), [grant()], NOW)
+
+    assert result.verdict is Verdict.AMBIGUOUS
+    assert result.check == PERFORMER_NOT_IDENTIFIED
+    assert "does not name or depict" in result.reason
+
+
+def test_identity_is_checked_before_anything_else():
+    """Even with no grant on file at all, an unrelated page is ambiguous rather
+    than unauthorized — `unauthorized` is wrong in the direction that accuses a
+    stranger."""
+    result = evaluate(observe(depicts_named_person=False), [], NOW)
+
+    assert result.verdict is Verdict.AMBIGUOUS
+    assert result.check == PERFORMER_NOT_IDENTIFIED
+
+
+def test_an_extraction_carries_its_identity_claim_into_the_observation():
+    extraction = TriageExtraction(
+        depicts_named_person=False, person_name=None, is_synthetic_claim=True,
+        modality="voice", is_commercial=True, target_territories=["BR"],
+        evidence_quote=QUOTE, confidence=0.95)
+
+    observation = Observation.from_extraction(extraction, "perf_mira")
+
+    assert observation.depicts_named_person is False
