@@ -5,10 +5,13 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-tests/
-tools/
-notion/
-docs/
+# Anchored with a leading slash on purpose. A bare `tools/` matches at ANY
+# depth, so it also excluded consentinel/tools/ and the container started with
+# no tools module at all - the build succeeded and the app failed to import.
+/tests/
+/tools/
+/notion/
+/docs/
 *.md
 .env
 .env.local
