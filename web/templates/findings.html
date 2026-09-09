@@ -10,12 +10,29 @@
       <p>Gemini writes the search phrases in five languages; a separate, deterministic rule engine
          checks every hit against the registry before anything is called unauthorised.</p>
     </div>
+    {% if can_act %}
+      <form method="post" action="/sweep" style="align-self:flex-start;">
+        <input type="hidden" name="k" value="{{ k }}">
+        <button class="btn" type="submit">Run sweep now</button>
+        <span class="hint" style="margin-top:6px;">Live. Takes about a minute.</span>
+      </form>
+    {% endif %}
     <div class="stats" style="margin:0; flex:none; min-width:280px;">
       <div class="stat orange" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.unauthorized }}</span><span class="lbl">not allowed</span></div>
       <div class="stat teal" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.authorized }}</span><span class="lbl">allowed</span></div>
       <div class="stat" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.ambiguous }}</span><span class="lbl">unclear</span></div>
     </div>
   </div>
+
+  {% if swept is not none %}
+    <div class="human-flag" style="margin-top:22px;">
+      <strong>Sweep finished.</strong> {{ searched }} results across five languages;
+      {{ swept }} recorded, {{ withheld }} withheld.
+      {% if withheld %}Those {{ withheld }} are real websites. We searched them, we counted them,
+        and we do not publish an authorisation verdict naming a real company from a public demo
+        &mdash; so the finding recorded below is the page we control.{% endif %}
+    </div>
+  {% endif %}
 
   <div class="finding head" style="margin-top:24px;">
     <div>Source</div><div>Performer</div><div>Aimed at</div><div>Confidence</div><div>Verdict</div>

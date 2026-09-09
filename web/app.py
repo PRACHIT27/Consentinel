@@ -49,6 +49,7 @@ from consentinel.model_armor import ModelArmor, describe as describe_armor
 from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
+from consentinel.sweep import run as sweep_run
 from web import security
 
 # Read .env if there is one. Cloud Run sets real environment variables and has
@@ -345,7 +346,9 @@ def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = N
 
 
 @app.get("/findings", response_class=HTMLResponse)
-def findings(request: Request, k: Optional[str] = None):
+def findings(request: Request, k: Optional[str] = None,
+             swept: Optional[int] = None, withheld: Optional[int] = None,
+             searched: Optional[int] = None):
     store = get_store()
     performers = {p.id: p for p in store.list_performers()}
     # Lead with the breaches. Sorting alphabetically would put "ambiguous"
@@ -381,6 +384,9 @@ def findings(request: Request, k: Optional[str] = None):
             "k": k or "",
             "q": _qs(k),
             "can_act": _can_act(k),
+            "swept": swept,
+            "withheld": withheld or 0,
+            "searched": searched or 0,
         },
     )
 
@@ -569,6 +575,73 @@ def consent_save(
 
     sep = f"?k={k}&" if k else "?"
     return RedirectResponse(url=f"/registry{sep}saved={consent.id}", status_code=303)
+
+
+# ------------------------------------------------------------------ the sweep
+#
+# The outward direction, runnable from the hosted URL.
+#
+# Until now a sweep needed a laptop with the Parallel key, which meant a judge
+# could read our recorded evidence but could not produce their own. The key is
+# in Secret Manager and this service can read it, so the button does the real
+# thing: Gemini writes the phrases, Parallel searches five languages, the page
+# is fetched and read, and the deterministic engine decides.
+#
+# `DESIGN.md` §3 said this service would deliberately hold no Parallel key. That
+# has changed on purpose and it is worth being explicit about the trade: a
+# public endpoint that spends partner quota is a real risk, so this is behind
+# the same action key as the two uploads, it only ever sweeps the demo
+# performer, and it records findings only for addresses we control.
+
+
+@app.post("/sweep")
+def run_sweep(request: Request, k: Optional[str] = Form(None)):
+    """Run one sweep and return to the findings screen.
+
+    Synchronous, and it takes the better part of a minute: seven live searches,
+    a fetch, and a model call that reads the page. A spinner and a background
+    job would be nicer and would also mean a judge cannot tell whether anything
+    really happened. Waiting is the honest version.
+    """
+    security.check(k)
+    store = get_store()
+
+    performer_id = os.environ.get("CONSENTINEL_DEMO_PERFORMER", "perf_mira_vance")
+    performer = next((p for p in store.list_performers() if p.id == performer_id), None)
+    if performer is None:
+        return RedirectResponse(url=f"/findings{_qs(k)}", status_code=303)
+
+    # The planted page, on this same service. Included by address rather than
+    # discovered, because a search for an invented performer finds real
+    # companies and nothing about her — see the note in `consentinel/sweep.py`
+    # on why those are counted and not published.
+    planted = str(request.base_url).rstrip("/") + "/demo/listing"
+
+    summary = sweep_run(
+        store, performer, store.list_consents(performer.id),
+        deps=HarnessDeps(
+            audit=get_audit(),
+            cache=get_cache(),
+            armor=get_armor(),
+            tracer=tracer,
+            metrics=metrics,
+        ),
+        extra_urls=[planted] if planted.startswith("http") else [],
+    )
+
+    trace_id, span_id = tracer.current_ids()
+    log.info("sweep finished", performer=performer.id, locales=summary.locales,
+             batches=summary.batches, results=summary.searched,
+             candidates=summary.candidates, recorded=summary.recorded,
+             withheld=summary.withheld, read=summary.read,
+             refused=summary.refused, verdicts=summary.verdicts,
+             degraded=summary.degraded, trace_id=trace_id, span_id=span_id)
+    metrics.counter("sweep.runs", outcome="degraded" if summary.degraded else "ok")
+
+    sep = f"?k={k}&" if k else "?"
+    return RedirectResponse(url=f"/findings{sep}swept={summary.recorded}"
+                                f"&withheld={summary.withheld}"
+                                f"&searched={summary.searched}", status_code=303)
 
 
 # ------------------------------------------------------------- the demo pages

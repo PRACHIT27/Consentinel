@@ -346,6 +346,13 @@ twice daily. **Read it before you start, update it before you finish.**
 real `client.search(...)` calls across 5 locales, and the log is committed at
 `evidence/published/`. That closes the gap `COMPETITION.md` §11 calls fatal.
 
+**A judge can run the sweep themselves.** `POST /sweep` on the hosted URL, behind the action key:
+Gemini writes the phrases, Parallel searches five languages live, the planted page at
+`/demo/listing` is fetched and read, and the rule engine decides. Real third-party results are
+counted and **withheld** - we do not publish an authorisation verdict naming a real company from a
+public demo. `consentinel/sweep.py` is the chain; the key is in Secret Manager as
+`consentinel-parallel-key`.
+
 **Now blocking the submission, in this order:**
 
 1. **The video is not shot.** *Swara.* Longest pole.

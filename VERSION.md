@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.3.0`**
+**Doc set version: `v3.4.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,29 @@ commit.
 # Log
 
 Newest first.
+
+## v3.4.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md` §3 (IAM table + a new note), `CLAUDE.md` Status
+**Type:** MINOR - one IAM rule deliberately loosened, with the mitigation written down
+
+**`consentinel-web@` now holds the Parallel key.** The IAM table said it deliberately did not, and
+that has changed on purpose.
+
+Why: a sweep needed a laptop with the key in `.env`, so a judge could read our recorded evidence and
+never produce their own. `POST /sweep` on the hosted URL now runs the real chain - Gemini writes the
+phrases, Parallel searches five languages, the page is fetched and read, the deterministic engine
+decides.
+
+The risk the old rule protected against is real: a public endpoint that spends partner quota. So:
+the endpoint is behind the same action key as the uploads, it sweeps one fictional performer and
+takes no input, it records findings only for addresses we control, and the key is a Secret Manager
+reference rather than an environment literal.
+
+**A second rule, new and load-bearing: we do not publish verdicts about real third parties.** The
+first live sweep returned elevenlabs.io, canva.com and a Google Play listing among its 21 real
+candidates. Those are counted, logged and withheld; the finding that gets recorded is the planted
+page we serve ourselves at `/demo/listing`. `consentinel/sweep.py` holds the rule and
+`tests/test_sweep.py` holds the spoofing case.
 
 ## v3.3.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `DESIGN.md` §2.0 (new), `COMPETITION.md` §5, `README.md`, `CLAUDE.md` Status

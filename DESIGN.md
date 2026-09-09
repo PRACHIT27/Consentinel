@@ -441,9 +441,30 @@ ingestion are decisions, and decisions are code.
 
 # 3. IAM — least privilege
 
+**One deliberate loosening, 9 Sep.** This table used to say `consentinel-web@`
+holds **no Parallel key**, and it now holds one, read from Secret Manager at
+`consentinel-parallel-key`.
+
+The reason: without it a sweep needs a laptop, so a judge could read our
+recorded evidence but never produce their own. `POST /sweep` on the hosted URL
+now runs the real chain. The risk that rule was protecting against is real — a
+public endpoint that spends partner quota — so it is mitigated rather than
+ignored:
+
+- the endpoint is behind the same action key as the two uploads (`web/security.py`);
+- it sweeps one performer, the fictional demo one, and takes no input;
+- it records findings only for addresses we control, so it cannot publish a
+  verdict about a real company;
+- the key is a secret reference, never an environment literal, so it does not
+  appear in the service's configuration or in a deploy command.
+
+If the demo were a product, this endpoint would be a queued job behind a real
+account rather than a shared key.
+
+
 | Principal | Grants | Deliberately withheld |
 |---|---|---|
-| `consentinel-web@` (Cloud Run) | invoke the four runtimes · Firestore read/write · **evidence: objectViewer** | no evidence write · no Parallel key |
+| `consentinel-web@` (Cloud Run) | invoke the four runtimes · Firestore read/write · **evidence: objectViewer** · Cloud Trace agent · **Parallel key (see below)** | no evidence write |
 | `consentinel-enforcement@` | Vertex AI user · Firestore read/write · Vision API · **evidence: objectCreator** · Parallel key secret | **no objectAdmin — cannot delete or overwrite evidence** |
 | `consentinel-triage@` | Vertex AI user · Model Armor · **Firestore read only** | no secrets · no storage · no Firestore write |
 | `consentinel-clearance@` | Vertex AI user · Firestore read/write · uploads + derived buckets | no evidence bucket · no Parallel key |

@@ -286,3 +286,43 @@ def test_a_gated_action_says_it_exists_rather_than_vanishing(monkeypatch):
     assert "switched off on this link" in registry
 
     webapp.set_store(None)
+
+
+def test_the_sweep_button_is_gated_and_runs_the_real_chain(client, monkeypatch):
+    """It spends Parallel quota and a model call, so it is gated like the
+    uploads. What it must not be is a button that only looks like it swept."""
+    called = {}
+
+    def fake_run(store, performer, consents, **kw):
+        called["performer"] = performer.id
+        called["urls"] = list(kw.get("extra_urls") or [])
+        from consentinel.sweep import SweepSummary
+        return SweepSummary(performer_id=performer.id, searched=21, recorded=1,
+                            withheld=20, locales=6, batches=7, read=1)
+
+    monkeypatch.setattr(webapp, "sweep_run", fake_run)
+    monkeypatch.setenv("CONSENTINEL_DEMO_PERFORMER", "p1")
+
+    r = client.post("/sweep", data={}, follow_redirects=False)
+    assert r.status_code == 303
+    assert "swept=1" in r.headers["location"]
+    assert called["performer"] == "p1"
+    assert called["urls"] and called["urls"][0].endswith("/demo/listing"), \
+        "the planted page is included by address, on whatever host we are served from"
+
+
+def test_a_sweep_needs_the_key(monkeypatch):
+    monkeypatch.setenv(security.ENV_VAR, "s3cret")
+    webapp.set_store(FakeStore())
+    c = TestClient(webapp.app)
+    assert c.post("/sweep", data={}).status_code == 403
+    webapp.set_store(None)
+
+
+def test_the_demo_page_is_served_for_the_sweep_to_read(client):
+    """A live sweep needs an address it can lawfully read. Ours, invented
+    performer, invented seller."""
+    body = client.get("/demo/listing").text
+    assert "Mira Vance" in body
+    assert client.get("/demo/listing-injected").status_code == 200
+    assert client.get("/demo/nonsense").status_code == 404
