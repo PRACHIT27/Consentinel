@@ -60,6 +60,7 @@ log = logging.getLogger("consentinel.reconciler")
 # constants rather than inline strings.
 # --------------------------------------------------------------------------
 
+PERFORMER_NOT_IDENTIFIED = "performer_not_identified"
 NO_GRANT = "no_grant"
 MODALITY_NOT_PERMITTED = "modality_not_permitted"
 TERRITORY_OUTSIDE_GRANT = "territory_outside_grant"
@@ -74,6 +75,7 @@ NO_CITATION = "no_citation"
 COVERED_BY_GRANT = "covered_by_grant"
 
 CHECK_ORDER = (
+    PERFORMER_NOT_IDENTIFIED,
     NO_GRANT, MODALITY_NOT_PERMITTED, TERRITORY_OUTSIDE_GRANT,
     GRANT_EXPIRED, GRANT_NOT_YET_EFFECTIVE, ACTOR_NOT_LICENSEE,
     CONFIDENCE_BELOW_THRESHOLD, COVERED_BY_GRANT,
@@ -121,6 +123,7 @@ class Observation:
     """
 
     performer_id: str
+    depicts_named_person: bool = False
     modality: Optional[str] = None
     target_territories: tuple[str, ...] = ()
     actor: Optional[str] = None            # who is offering it, if we know
@@ -133,6 +136,7 @@ class Observation:
         """Build from a **validated** extraction (WU-10 has already run)."""
         return cls(
             performer_id=performer_id,
+            depicts_named_person=extraction.depicts_named_person,
             modality=extraction.modality,
             target_territories=tuple(t.strip().upper()
                                      for t in extraction.target_territories
@@ -320,6 +324,23 @@ def evaluate(observation: Observation, consents: Sequence[Consent],
     now = _aware(as_of) or datetime.now(timezone.utc)
     mine = [c for c in consents if c.performer_id == observation.performer_id]
 
+    # (0) is this page even about the performer?
+    #
+    # Not in FR-4.2, because the flow chart starts from "an observation about a
+    # performer" and assumes that part. The first live sweep showed why it needs
+    # saying: a generic voice-cloning product page mentions nobody, so the name
+    # check passes vacuously, and the engine then answers "is this covered by
+    # her grants?" about a page that has nothing to do with her. Every answer to
+    # that question is wrong, and `unauthorized` is wrong in the direction that
+    # accuses a stranger.
+    if not observation.depicts_named_person:
+        return _finish(VerdictResult(
+            verdict=Verdict.AMBIGUOUS, check=PERFORMER_NOT_IDENTIFIED,
+            reason=("the page does not name or depict this performer, so no "
+                    "verdict about their consent can be reached from it"),
+            citation=observation.evidence_quote,
+            grants_considered=len(mine), as_of=now), strict_citation)
+
     # (a) no grant at all
     if not mine:
         return _finish(VerdictResult(
@@ -445,6 +466,7 @@ class Reconciler:
             "event": "verdict",
             "subject_id": observation.performer_id,
             "model": None,                 # there is no model in this module
+            "depicts_named_person": observation.depicts_named_person,
             "modality": observation.modality,
             "target_territories": list(observation.target_territories),
             "observed_actor": observation.actor,

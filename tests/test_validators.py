@@ -128,6 +128,33 @@ def test_a_different_surname_never_matches_on_the_first_initial_alone():
         check_person_name_matches(extraction(person_name="Mira Vasquez"), MIRA)
 
 
+@pytest.mark.parametrize("name", ["Mira", "Vance", "mira", "MIRA"])
+def test_a_bare_single_name_never_matches_a_full_one(name):
+    """The bug the first live sweep found. `"Mira"` used to match `"Mira
+    Vance"` through a substring test, so an unrelated phone app called Mira
+    came back `unauthorized` with a citation. Asserting an infringement about
+    the wrong entity is the worst thing this product can do."""
+    with pytest.raises(ValidationError, match="different person"):
+        check_person_name_matches(extraction(person_name=name), MIRA)
+
+
+def test_a_longer_name_is_not_assumed_to_be_the_same_person():
+    """"Mira Vance Ferreira" may well be someone else, and doubt is the safe
+    direction."""
+    with pytest.raises(ValidationError):
+        check_person_name_matches(
+            extraction(person_name="Mira Vance Ferreira"), MIRA)
+
+
+def test_a_mononym_performer_still_matches_itself():
+    """The single-name rule must not lock out performers who use one name."""
+    mononym = Performer(id="p3", name="Ashani")
+
+    check_person_name_matches(extraction(person_name="Ashani"), mononym)
+    with pytest.raises(ValidationError):
+        check_person_name_matches(extraction(person_name="Ashani Rao"), mononym)
+
+
 def test_depicting_a_named_person_requires_naming_them():
     with pytest.raises(ValidationError, match="person_name is empty"):
         check_person_name_matches(

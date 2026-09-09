@@ -44,6 +44,7 @@ from consentinel.agents.injection_canary import InjectionScan
 from consentinel.agents.injection_canary import scan as scan_for_injection
 from consentinel.agents.validators import (
     REVIEW_THRESHOLD,
+    VALIDATORS_VERSION,
     extraction_validators,
     is_reviewable,
 )
@@ -288,14 +289,21 @@ class Triage:
         return text[: self.max_page_chars], True
 
     def _cache_key(self, page_text: str) -> str:
-        """`sha256(page_text) + prompt_version` (WU-09, hard rule 8).
+        """`sha256(page_text) + prompt_version + validators_version`.
 
-        Content-addressed, so no TTL: identical bytes read with the same prompt
-        give the same answer. The instruction text is not in the key because
-        `prompt_version` is what we promise to bump when it changes.
+        WU-09 asks for the first two. The third is there because a cached
+        extraction was validated by whatever rules existed when it was written:
+        when `_names_match` was tightened, the first live sweep's bogus
+        verdicts survived the fix, because the extraction behind them came from
+        cache and the validators never ran again. A stricter check has to
+        invalidate what a looser one accepted.
+
+        Content-addressed, so no TTL: identical bytes, same prompt, same rules,
+        same answer.
         """
         digest = hashlib.sha256(page_text.encode("utf-8")).hexdigest()
-        return f"triage:{self.deps.prompt_version}:{digest}"
+        return (f"triage:{self.deps.prompt_version}:"
+                f"{VALIDATORS_VERSION}:{digest}")
 
     def _to_result(self, result: HarnessResult, snapshot: PageSnapshot,
                    page_text: str, truncated: bool,
