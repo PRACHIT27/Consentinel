@@ -107,6 +107,36 @@ commit.
 
 Newest first.
 
+## v2.3.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
+**Type:** MINOR
+
+**Vedant: follow this layout for your agents.** `consent_ingest` was one 350-line file holding the
+prompt, the schema, the guardrails, the policy and the logic. Split into the shape GridMind uses,
+because six more agents are about to be written and the pattern should be right before they are.
+
+```
+agents/common/gemini.py     the only place we call a model
+agents/<agent>/agent.py     the steps and the HarnessPolicy
+agents/<agent>/guardrail.py what can reject an answer
+agents/<agent>/instructions.py  the prompt, the schema, PROMPT_VERSION
+```
+
+- Prompts change far more often than code, so a wording tweak is now a one-file diff, and
+  `PROMPT_VERSION` sits beside the words it versions.
+- `guardrail.py` is the security surface of a step. A reviewer asking what stops a fabricated
+  citation should find one short file.
+- One `generate_json` in `agents/common/gemini.py` means the untrusted-content fence is drawn once
+  rather than in every agent. No free-text variant exists on purpose.
+- The package `__init__` re-exports everything, so callers and tests were unaffected.
+
+**Bug found and fixed during the move:** building the Gemini client inline as
+`_client().models.generate_content(...)` left nothing holding a reference, and it was closed while
+the request was in flight - "Cannot send a request, as the client has been closed." It is now a
+module-level cached client, which also stops auth being rebuilt on every call.
+
+78 tests pass.
+
 ## v2.2.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `consentinel/agents/consent_ingest.py`, `tools/make_contract_pdf.py`
 **Type:** MINOR

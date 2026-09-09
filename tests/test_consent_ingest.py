@@ -14,9 +14,9 @@ import pytest
 
 from consentinel.agents.consent_ingest import (
     ConsentDraft,
-    _check_citations_are_real,
-    _check_vocabulary,
     cache_key,
+    check_citations_are_real,
+    check_vocabulary,
     extract_consent,
     read_pages,
     to_consent,
@@ -66,7 +66,7 @@ def test_cache_key_follows_the_file_not_the_name():
 def test_a_made_up_quote_is_rejected(pages):
     """The guardrail that matters. One string comparison, and an invented
     citation becomes impossible."""
-    validate = _check_citations_are_real(pages)
+    validate = check_citations_are_real(pages)
     with pytest.raises(ValidationError) as e:
         validate({"citations": [{"field": "licensee", "quote": "Producer may do whatever it likes.", "page": 4}]})
     assert "not on any page" in str(e.value)
@@ -76,7 +76,7 @@ def test_a_made_up_quote_is_rejected(pages):
 def test_a_real_quote_on_the_wrong_page_is_rejected(pages):
     """A citation that points at the wrong page is worse than none — someone
     checking it would look at page 1 and conclude we invented it."""
-    validate = _check_citations_are_real(pages)
+    validate = check_citations_are_real(pages)
     with pytest.raises(ValidationError) as e:
         validate({"citations": [{
             "field": "permitted_uses",
@@ -90,7 +90,7 @@ def test_a_real_quote_on_the_wrong_page_is_rejected(pages):
 def test_line_breaks_in_the_pdf_do_not_break_a_good_quote(pages):
     """PDF text reflows, so a sentence can arrive with a newline in the middle.
     Whitespace is the only tolerance allowed."""
-    validate = _check_citations_are_real(pages)
+    validate = check_citations_are_real(pages)
     validate({"citations": [{
         "field": "permitted_uses",
         "quote": "Producer may generate synthetic\n   voice performances of the Artist solely for the Picture,\nin the United States and Canada.",
@@ -104,7 +104,7 @@ def test_curly_quotes_in_a_real_copy_still_match(pages):
     return curly quotes for a page that renders them straight. That is how the
     characters are drawn, not what they say, so it must not be treated as a
     fabrication."""
-    validate = _check_citations_are_real(pages)
+    validate = check_citations_are_real(pages)
     validate({"citations": [{
         "field": "territories",
         "quote": "“Territory” means, except where this Agreement provides otherwise, the United States and Canada.",
@@ -114,7 +114,7 @@ def test_curly_quotes_in_a_real_copy_still_match(pages):
 
 @needs_pdf
 def test_a_page_that_does_not_exist_is_rejected(pages):
-    validate = _check_citations_are_real(pages)
+    validate = check_citations_are_real(pages)
     with pytest.raises(ValidationError) as e:
         validate({"citations": [{"field": "licensee", "quote": "anything", "page": 99}]})
     assert "6-page" in str(e.value)
@@ -130,18 +130,18 @@ def test_a_page_that_does_not_exist_is_rejected(pages):
 ])
 def test_invented_values_are_rejected(payload, expect):
     with pytest.raises(ValidationError) as e:
-        _check_vocabulary(payload)
+        check_vocabulary(payload)
     assert expect in str(e.value)
 
 
 def test_the_allowed_vocabulary_passes():
-    _check_vocabulary({
+    check_vocabulary({
         "permitted_uses": ["voice_synth", "archival_reuse"],
         "territories": ["US", "CA"],
         "valid_from": "2026-01-01",
         "valid_to": "2028-12-31",
     })
-    _check_vocabulary({"territories": ["WORLDWIDE"]})
+    check_vocabulary({"territories": ["WORLDWIDE"]})
 
 
 # ---------------------------------------------------------------- the draft

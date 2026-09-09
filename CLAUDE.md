@@ -199,6 +199,33 @@ Claude Code sessions read files and cannot see Notion.
 
 ---
 
+## Agent layout — follow this for every agent
+
+One folder per agent, three files, plus anything genuinely shared in
+`agents/common/`:
+
+```
+consentinel/agents/common/gemini.py        the only place we call a model
+consentinel/agents/<agent>/
+    __init__.py       re-exports; import from the package, not the modules
+    agent.py          the steps, and the HarnessPolicy
+    guardrail.py      what can reject an answer
+    instructions.py   the prompt, the response schema, PROMPT_VERSION
+```
+
+Why split rather than one file:
+
+- **Prompts change constantly.** Keeping them alone means a wording tweak is a
+  one-file diff, and `PROMPT_VERSION` sits next to the words it versions — bump
+  it when they change, or the cache serves answers from a prompt you deleted.
+- **`guardrail.py` is the security surface.** Someone asking "what stops it
+  inventing a citation?" should find one short file, not a function three
+  hundred lines into the agent.
+- Every model call goes through `agents/common/gemini.py`, so the
+  untrusted-content boundary is drawn once instead of six times.
+
+`consent_ingest` is the worked example. Copy its shape.
+
 ## Conventions
 
 - Type hints everywhere; dataclasses for records
