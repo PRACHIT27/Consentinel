@@ -34,6 +34,7 @@ from fastapi.templating import Jinja2Templates
 from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_consent
 from consentinel.agents.consent_ingest import PROMPT_VERSION
 from consentinel.audit import FirestoreAudit
+from consentinel.cache import FirestoreCache
 from consentinel.harness.ports import HarnessDeps
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
@@ -67,12 +68,28 @@ def get_store() -> Store:
 
 def set_store(store: Store) -> None:
     """Used by tests to swap in a fake so they do not need the network."""
-    global _store, _audit
+    global _store, _audit, _cache
     _store = store
     _audit = None
+    _cache = None
 
 
 _audit: Optional[FirestoreAudit] = None
+_cache: Optional[FirestoreCache] = None
+
+
+def get_cache() -> FirestoreCache:
+    """Shared across containers on purpose. An in-process cache is useless when
+    the next request lands on a different Cloud Run instance — and this one
+    survives a redeploy, which is what lets DEMO_MODE record a video with no
+    network."""
+    global _cache
+    if _cache is None:
+        _cache = FirestoreCache(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            prefix=os.environ.get("CONSENTINEL_PREFIX", ""),
+        )
+    return _cache
 
 
 def get_audit() -> FirestoreAudit:
@@ -247,7 +264,11 @@ async def consent_extract(
     try:
         result = extract_consent(
             tmp_path,
-            deps=HarnessDeps(audit=get_audit(), prompt_version=PROMPT_VERSION),
+            deps=HarnessDeps(
+                audit=get_audit(),
+                cache=get_cache(),
+                prompt_version=PROMPT_VERSION,
+            ),
         )
     finally:
         tmp_path.unlink(missing_ok=True)

@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.7.0`**
+**Doc set version: `v3.0.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,45 @@ commit.
 
 Newest first.
 
+## v3.0.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `consentinel/store/base.py` (bug fix), plus `consentinel/cache/` and `infra/firestore/`
+**Type:** MAJOR - a frozen-contract file changed, though the interface did not
+
+**WU-19 is done. 104 tests.** Two regimes, kept apart because conflating them is the bug.
+
+- **Content-addressed, no expiry.** The hash is the key, so the answer cannot go stale. Contract
+  text, media inspection, transcripts.
+- **TTL, because the web moves.** Search and page fetches expire, and their keys carry `locale`.
+
+**What it actually buys, measured:** reading the same contract twice went from **12.75s to 0.08s**,
+and one model call became zero. Cache stats confirmed one hit, one miss.
+
+Small entries live in a Firestore `cache` collection; anything over 100 KB goes to Cloud Storage,
+because Firestore documents cap at 1 MiB and page text gets close. Both are shared across Cloud Run
+containers - an in-process cache is useless when the next request lands on a different instance -
+and a warm cache now survives a redeploy, which is what lets `DEMO_MODE` record without a network.
+
+`infra/firestore/01_cache_ttl.sh` enables Firestore's native TTL on `expires_at`, so expired
+documents are deleted by policy rather than by a cron job we would have to write and watch.
+
+**Frozen-contract bug fixed.** `CacheEntry.age_seconds()` used `datetime.utcnow()`, which is naive,
+while Firestore returns aware timestamps. Every cache hit therefore raised
+`TypeError: can't subtract offset-naive and offset-aware datetimes` - and because the harness
+converts an exception into a fail state, it surfaced as *every cached call failing* rather than as
+anything resembling a clock problem. Both sides are now made aware before subtracting. The
+signature is unchanged, so nothing needs updating; marked MAJOR only because the file is governed.
+
+**Two behaviours worth knowing:**
+- An entry past its time is treated as gone even though the document is still there. Firestore's
+  sweep is not instant, and serving stale data would be worse than a miss.
+- A missing blob is a miss, not an error. A cache that raises is worse than a cache that misses,
+  because the caller can always recompute.
+
+**Action required:**
+- Vedant: `FirestoreCache` satisfies the harness `CachePort`, so pass it in `HarnessDeps` and step 3
+  starts working. Use `web_key(..., locale=...)` for search and page fetches - the locale is not
+  optional in practice, and leaving it out corrupts territory answers quietly rather than loudly
+- WU-20 `DEMO_MODE` is unblocked
 ## v2.7.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `consentinel/audit.py` and the web app
 **Type:** MINOR
