@@ -647,3 +647,87 @@ that is +15 to +20 hours. The harness recovers a good part of it by making the p
 and the deterministic evalsets are nearly free — but if Monday evening is behind, the order to cut
 is: `ImageSweep` → scheduler → `enforcement_happy` and `consent_extraction` evalsets → the metrics
 dashboard. **Never** cut `adversarial_injection`, the four deployments, or the video.
+
+---
+
+# Part III — handling dangerous pages
+
+Added 8 Sep. The sweep looks at the corners of the web where people sell cloned voices. That is not
+a well-behaved neighbourhood, and the design so far only defended against pages that try to
+*manipulate* the agent. It did not defend against pages that are simply dangerous to open, or that
+contain material we must not keep a copy of.
+
+Three separate problems, three separate defences. None substitutes for another.
+
+## 1. The address is known to be dangerous
+
+**Before** fetching anything, ask Google's Web Risk service about the address. It already keeps
+lists of malware, phishing and unwanted-software sites, so there is no reason for us to be the one
+who finds out.
+
+If it comes back unsafe:
+
+- do not open the page
+- record the finding with `status = BLOCKED_UNSAFE` and `verdict = AMBIGUOUS`
+- put the threat types in the reasoning, so the screen can say why we skipped it
+
+`verdict` stays ambiguous on purpose. **Refusing to look is not the same as deciding the use was
+allowed.** Same rule as everywhere else: every gap points toward doubt.
+
+If the safety check itself fails, treat the address as unsafe and move on. One missed listing costs
+nothing. Opening a malware page costs more.
+
+## 2. The address points somewhere it should not
+
+The network guards already in `fetch_page`: private and link-local ranges blocked, only http and
+https, every redirect re-checked, size capped, no cookies or credentials sent.
+
+Worth restating why the credentials rule matters here — if we sent a token to a hostile page, that
+page would then have our token.
+
+## 3. The words on the page try to steer the agent
+
+Model Armor, configured differently depending on which way the text is travelling:
+
+| Where | What it checks | What we do |
+|---|---|---|
+| Page text going in to triage | prompt injection, jailbreak, personal data, dangerous links | **flag, do not block** |
+| Contract or invoice going in | personal data | flag |
+| Draft takedown letter going out | personal data, dangerous links | **block** |
+
+The asymmetry is deliberate. A page trying to manipulate us is very often the same page that is
+infringing, so blocking it would suppress the finding we went looking for. We want that page
+recorded, with a badge saying what it tried. Outgoing text is the opposite: a takedown letter must
+never carry someone's personal data or a link to a malware site, so that one is blocked outright.
+
+## 4. Material we must not keep
+
+This one has no clever answer and needs stating plainly.
+
+A system that searches for non-consensual synthetic imagery will eventually land on something
+genuinely unlawful. Snapshotting it into our evidence bucket would itself be a serious problem, and
+so would rendering it on a screen.
+
+So when Model Armor's safety filters flag a page in that category:
+
+- **nothing is snapshotted.** No page text, no screenshot, no media file
+- **nothing is rendered.** The findings screen shows the address and the classification, never the
+  content
+- we record the URL, a hash, the classification and the timestamp, and set
+  `status = ESCALATED_UNLAWFUL`
+- a person is told, and handles it through the proper channel
+
+This is the one place the product deliberately keeps *less* evidence rather than more. Everywhere
+else our instinct is to preserve; here, preserving is the harm.
+
+## Keeping bad hosts out of the results in the first place
+
+Cheapest defence of all: Parallel's search settings accept an exclude list. Known-bad hosts never
+enter the pipeline, so none of the above has to run on them.
+
+## What this adds to the build
+
+- `web_risk_check(url)` in `tools/contracts.py`, called first inside WU-08
+- Two new `FindingStatus` values: `BLOCKED_UNSAFE`, `ESCALATED_UNLAWFUL`
+- Web Risk API enabled on the project
+- The findings screen needs to render both new states without showing content
