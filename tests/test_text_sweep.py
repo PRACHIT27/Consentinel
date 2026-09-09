@@ -300,6 +300,40 @@ def test_every_batch_reaches_the_sdk_with_its_own_locale_and_the_sweep_id():
     assert {c["session_id"] for c in sdk.calls} == {"sweep_abc"}
 
 
+# ------------------------------------------------------- host exclusions
+
+def test_excluded_hosts_are_kept_out_of_the_results_in_the_first_place():
+    """DESIGN Part III: the cheapest defence — a known-bad host that never
+    enters the results never has to be risk-checked, fetched or triaged."""
+    t, _, sdk, _ = sweep(["https://a.example/1"],
+                         exclude_domains=("malware.example", "phish.example"))
+
+    t.run(MIRA, ONE_BATCH)
+
+    policy = sdk.calls[0]["advanced_settings"]["source_policy"]
+    assert policy["exclude_domains"] == ["malware.example", "phish.example"]
+
+
+def test_the_exclusion_list_can_come_from_the_environment(monkeypatch):
+    monkeypatch.setenv("CONSENTINEL_EXCLUDE_DOMAINS", " Bad.Example , other.example ")
+    t, _, sdk, _ = sweep(["https://a.example/1"])
+
+    t.run(MIRA, ONE_BATCH)
+
+    assert sdk.calls[0]["advanced_settings"]["source_policy"]["exclude_domains"] == \
+           ["bad.example", "other.example"]
+
+
+def test_nothing_is_excluded_unless_somebody_says_so(monkeypatch):
+    """An exclusion silently hides findings, so the default is none."""
+    monkeypatch.delenv("CONSENTINEL_EXCLUDE_DOMAINS", raising=False)
+    t, _, sdk, _ = sweep(["https://a.example/1"])
+
+    t.run(MIRA, ONE_BATCH)
+
+    assert "source_policy" not in sdk.calls[0]["advanced_settings"]
+
+
 # -------------------------------------------------------------- fail safe
 
 def test_one_dead_batch_degrades_the_sweep_but_the_others_still_count():

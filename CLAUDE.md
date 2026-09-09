@@ -266,6 +266,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `parallel_search` via official `parallel-web` SDK — *Vedant* (WU-05, 23 tests)
 - [x] `QueryPlanner` — *Vedant* (WU-06, 31 tests; 5 locales, 5 languages, deterministic fallback)
 - [x] `TextSweep` — *Vedant* (WU-07, 24 tests; dedupe on `url_hash`, 25-candidate cap)
+- [x] `fetch_page` + `web_risk_check` — *Vedant* (WU-08, 60 tests; SSRF guards, fails closed)
 - [ ] `Triage` + `Reconciler` (deterministic rules, unit-tested) — *Vedant*
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*

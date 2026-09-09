@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.4`**
+**Doc set version: `v2.0.5`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,69 @@ commit.
 # Log
 
 Newest first.
+
+## v2.0.5 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/tools/`
+**Type:** PATCH — implements contract v2.0.0; nothing new is declared
+
+**WU-08 is done, both halves of it. 193 passing (60 new).**
+
+`consentinel/tools/web_risk.py` and `consentinel/tools/fetch_page.py`. Both action items from
+v2.0.0 are closed.
+
+**Order of checks, exactly as the contract states it:** Web Risk, then the network guards, then
+Model Armor (WU-29, on the triage path). A test asserts the *order* — a dangerous address is
+refused for being dangerous, not for where it resolves, so the reason on the finding is the true one.
+
+**It fails closed, and that is asserted rather than assumed.** If the Web Risk call errors, the
+address comes back `safe=False` with `threats=["CHECK_FAILED"]`, distinguishable from a real
+`MALWARE` verdict. `web_risk_check` never raises out — a safety check that throws is a safety check
+somebody wraps in `try/except` and forgets.
+
+**Two bugs the tests caught in my own first version**, both worth knowing if you write similar code:
+
+- **IP-literal URLs skipped the guard.** `http://10.0.0.5/` went through the resolver instead of
+  being checked directly. A literal is now checked as a literal — a broken or hostile resolver does
+  not get to answer a question we can settle ourselves.
+- **`100.64.0.0/10` is not `is_private` on Python 3.12.** Carrier-grade NAT sailed through. The
+  guard now leads with `is_global` (IANA "globally reachable") and keeps the named ranges as well,
+  because that property's definition has moved between versions and an SSRF guard should show
+  10/8, 127/8 and 169.254/16 in the code.
+
+Other things a reviewer should know:
+
+- **Redirects are followed by hand**, and every hop is re-validated. The acceptance test is a public
+  URL that 302s to `169.254.169.254`, with the handler asserting the private hop is never requested.
+- **A refusal and a failure are different exception families.** `FetchRefused` (`UnsafeUrl`,
+  `BlockedAddress`) means we declined; `FetchFailed` means we tried and could not. Both leave the
+  verdict ambiguous, but only the first is a statement about the address. `fetch_detailed()` returns
+  the same information without exceptions, plus `status=BLOCKED_UNSAFE` ready for the row.
+- **No cookies, no credentials, `trust_env=False`** — that last one stops a proxy or `.netrc` in the
+  environment attaching credentials to a request aimed at a hostile host. Declared user agent.
+  `Accept-Language` is derived from the locale, so locale is on the wire as well as in the cache key.
+- **HTML never gets rendered or escaped** — a stdlib `HTMLParser` drops tags on the way in and
+  returns text plus absolute media URLs. One fewer dependency reading hostile input.
+- Body is streamed and **truncated** at 2 MB with a marker in the text, because the other end
+  chooses the size.
+- `DEMO_MODE=true` serves cached pages and refuses to reach the network on a miss, same as
+  `parallel_search`.
+
+**WU-06/WU-07 follow-up (the other v2.0.0 action item):** `TextSweep` now passes
+`source_policy.exclude_domains`, from `CONSENTINEL_EXCLUDE_DOMAINS` or an explicit argument.
+**Empty by default on purpose** — an exclusion silently hides findings, so nothing is excluded
+unless a person says so.
+
+`requirements.txt`: added `google-cloud-webrisk`. `.env.example`: `WEB_RISK_ENABLED` (default true)
+and `CONSENTINEL_EXCLUDE_DOMAINS`.
+
+**Action required:**
+- **Whoever owns the project:** enable the **Web Risk API** on `consentinel`. Until then every
+  fetch fails closed and refuses every page — correct behaviour, useless demo. `WEB_RISK_ENABLED=false`
+  is the local escape hatch and it logs loudly that pages went unchecked
+- **Prachit, WU-22:** `FetchOutcome.status` is already `BLOCKED_UNSAFE` for refusals and
+  `outcome.reason` carries the threat names, so the screen can say why without showing content
+- **WU-09 (mine, next):** triage consumes `PageSnapshot.text` as data in a delimited field. Nothing
+  from a page goes into a system prompt
 
 ## v2.0.4 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md`, `COMPETITION.md` §12, `README.md`

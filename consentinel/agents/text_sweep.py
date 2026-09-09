@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -51,7 +52,7 @@ from consentinel.store.base import (
     Performer,
 )
 from consentinel.tools.contracts import SearchResponse
-from consentinel.tools.parallel_search import ParallelSearch, is_degraded
+from consentinel.tools.parallel_search import ParallelSearch, SourcePolicy, is_degraded
 
 AGENT_NAME = "TextSweep"
 
@@ -201,6 +202,22 @@ class SweepReport:
 # The sweep
 # --------------------------------------------------------------------------
 
+def exclude_domains_from_env() -> tuple[str, ...]:
+    """`CONSENTINEL_EXCLUDE_DOMAINS=a.example,b.example`.
+
+    DESIGN Part III calls a host exclusion the cheapest defence of all: a
+    known-bad host that never enters the results never has to be risk-checked,
+    fetched or triaged. It lives in the environment rather than in code because
+    the list is an operating decision made during a sweep, not a constant.
+
+    Empty by default, deliberately. **An exclusion silently hides findings** —
+    the one failure mode this product cannot tolerate — so nothing is excluded
+    unless a person says so.
+    """
+    raw = os.environ.get("CONSENTINEL_EXCLUDE_DOMAINS", "")
+    return tuple(d.strip().lower() for d in raw.split(",") if d.strip())
+
+
 @dataclass
 class TextSweep:
     store: FindingStore
@@ -208,6 +225,8 @@ class TextSweep:
     deps: HarnessDeps = field(default_factory=HarnessDeps)
     max_candidates: int = CANDIDATE_BUDGET
     concurrency: int = DEFAULT_CONCURRENCY
+    exclude_domains: Optional[tuple[str, ...]] = None   # None -> read the env
+    after_date: Optional[str] = None                    # YYYY-MM-DD, freshness
 
     def _searcher(self) -> ParallelSearch:
         if self.search is None:
@@ -253,6 +272,10 @@ class TextSweep:
         what makes the cap reproducible instead of a race.
         """
         searcher = self._searcher()
+        excluded = (self.exclude_domains if self.exclude_domains is not None
+                    else exclude_domains_from_env())
+        policy = (SourcePolicy(exclude_domains=excluded, after_date=self.after_date)
+                  if (excluded or self.after_date) else None)
 
         def one(batch: SearchBatch) -> Any:
             return searcher.search_detailed(
@@ -262,6 +285,7 @@ class TextSweep:
                 max_results=plan.results_per_batch,
                 session_id=sweep_id,          # ties the sweep together
                 subject_id=performer.id,
+                source_policy=policy,
             )
 
         if not batches:
