@@ -22,7 +22,14 @@ venv/
 *.sqlite3
 .cache/
 data/
-evidence/
+# `evidence/*` rather than `evidence/`, because git does not descend into an
+# ignored directory and the negation below would never be reached.
+# `evidence/runtime/` names seventeen real hosts, which the demo-safety rule
+# keeps out of a public repo. `evidence/published/` is what
+# `tools/redact_evidence.py` makes from it, and is the runtime evidence
+# COMPETITION.md §6 requires. Never un-ignore evidence/runtime/.
+evidence/*
+!evidence/published/
 
 # Node / frontend
 node_modules/
