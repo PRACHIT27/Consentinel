@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.5`**
+**Doc set version: `v3.3.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,47 @@ commit.
 # Log
 
 Newest first.
+
+## v3.3.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md` §2.0 (new), `COMPETITION.md` §5, `README.md`, `CLAUDE.md` Status
+**Type:** MINOR - a cut work unit is un-cut and done; no structural change, so the freeze holds
+
+**WU-24 is done. Agent Engine is real.** Four runtimes, each on its own service account:
+
+    cn-ingest        ConsentIngest         projects/255860737849/.../reasoningEngines/...
+    cn-triage        Triage                isolated: hostile input
+    cn-clearance     ClearanceInspector
+    cn-enforcement   QueryPlanner
+
+Resource names are in `infra/agent_engine/deployed.json`, and what each one answered when called is
+in `infra/agent_engine/smoke_output.json`. Both committed: "we deployed to Agent Engine" is a
+submission claim, and a claim needs something to point at.
+
+It was cut earlier the same day and un-cut at Prachit's call. The reason for the cut was that it had
+no scaffolding while the hosted URL was still unverified; once the URL was recorded, the reason was
+gone, and the rules quote *"powered by Gemini and Google Cloud Agent Builder"* directly.
+
+**What may be claimed, and what may not.** `COMPETITION.md` §5 now spells this out. The agents are
+built with ADK and deployed to Agent Engine; the app runs on Cloud Run; the reconciler that decides
+every verdict runs in code next to the registry, because it reads the registry and has no model.
+Do not say the whole pipeline executes on Agent Engine - it does not, and that is a claim a judge
+can puncture in one question.
+
+**`DESIGN.md` §2.0 is new and worth reading before anyone redeploys.** Four things fail in ways that
+name something other than the cause:
+
+- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are reserved env var names; passing either
+  fails the create outright
+- `extra_packages` is tarred relative to the working directory, so an absolute path produces a
+  runtime that builds, then will not start: `No module named 'consentinel'`
+- a runtime opens its session as *itself*, so its own service account needs `aiplatform.sessions.*`
+  (and it is `sessionEvents.append`, not `.create`)
+- the container has to resolve **the same ADK this machine has**, and specifically a *recent* one:
+  Agent Engine's own serving code passes `auto_create_session` to `Runner`, which older ADK does not
+  accept. This machine went 1.14.1 -> 2.8.0 to make that true; the suite passes on both
+
+**Action required:** nobody. But if you rebuild a runtime from a laptop with an old `google-adk`,
+expect it to deploy and then refuse every call. `pip install --upgrade google-adk` first.
 
 ## v3.2.5 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md` Status

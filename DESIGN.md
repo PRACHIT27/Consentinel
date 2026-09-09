@@ -338,6 +338,53 @@ on every change, ADK composes `SequentialAgent` in-process, and eleven network h
 `tools=[]` and data-flow isolation do not already give us. Deployment separation mitigates
 credential theft — which is why Triage, and only Triage, gets its own.
 
+## 2.0 Deployed — how, and what actually runs there
+
+    python -m infra.agent_engine.deploy --all      # deploy the four
+    python -m infra.agent_engine.deploy --list     # what exists now
+    python -m infra.agent_engine.smoke             # call each one for real
+
+Resource names are recorded in `infra/agent_engine/deployed.json`; the answers each runtime gave
+are in `infra/agent_engine/smoke_output.json`. Both are committed, because "we deployed to Agent
+Engine" is a submission claim and a claim needs something to point at.
+
+Each runtime hosts its pipeline's **model step**, built by that agent's own `build_agent()`, so the
+deployed prompt is the prompt the app uses. Every one sets `output_schema`, and with it set ADK
+refuses tools and agent transfer — which turns "no tools, no free-form output channel" into a
+property of the runtime rather than a promise in a prompt.
+
+The deterministic parts stay on Cloud Run next to the registry, and that is not a compromise: the
+reconciler decides every verdict, it has no model, and it reads the registry. Moving it to a runtime
+would mean moving the registry. **The accurate sentence is "the LLM agents run on Agent Engine, the
+decisions run in code."** The app also calls those same agents in-process, so a judge asking "is
+this wired up or just deployed?" gets an honest answer either way.
+
+Three things that cost real time here. Two look like build problems and are not:
+
+- **`GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are reserved names.** Passing either in
+  `env_vars` fails the create outright with `FailedPrecondition`. Agent Engine sets them itself.
+- **`extra_packages` paths are tarred relative to the working directory.** An absolute path builds
+  an archive the container unpacks where `import consentinel` cannot see it. The build *succeeds*
+  and the runtime then fails to start with `No module named 'consentinel'`, minutes later.
+- **A runtime opens its session as itself.** So each runtime's own service account needs
+  `aiplatform.sessions.*`, not just `aiplatform.endpoints.predict`. Until it does, the deployment
+  looks healthy and every call returns `403 aiplatform.sessions.create denied` — on its own
+  resource. `infra/iam/model_invoker_role.yaml` now carries those permissions, and IAM takes about
+  ninety seconds to propagate before the first call works.
+- **The container has to resolve the same ADK this machine has, and a recent one.** The agent is
+  pickled here and unpickled there. A container *newer* than us answers every call with
+  `'LlmAgent' object has no attribute 'mode'`; a container *older* than us will not start —
+  `Runner.__init__() got an unexpected keyword argument 'auto_create_session'`, passed by Agent
+  Engine's own serving code. `requirements()` pins `google-adk` to the installed version, so keep
+  the installed version current. This machine went 1.14.1 → 2.8.0 to make that true.
+- **Deployments running at once used to overwrite each other's agent.** `create()` stages the
+  pickle to a fixed object, `gs://…/agent_engine/agent_engine.pkl`, so four parallel deploys raced
+  and each runtime came up serving whichever agent won. Nothing about it looks wrong from outside:
+  the runtime is healthy, it answers promptly, and it answers as the wrong agent. Fixed with a
+  `gcs_dir_name` per runtime — and `infra/agent_engine/smoke.py` now asserts *which* agent replied,
+  because that check is the only thing that catches this. It was caught by `cn-triage` replying
+  with a search plan.
+
 ## 2.1 The agents
 
 | # | Agent | ADK type | Tools | Model | Runtime |

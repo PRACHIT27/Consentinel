@@ -132,19 +132,29 @@ def requirements() -> list[str]:
             continue
         out.append(line)
 
-    # Pin the two packages that have to match this machine exactly.
+    # Pin ADK to this machine's version, and keep that version current.
     #
-    # The agent object is *pickled* here and unpickled in the container. If the
-    # container resolves a different ADK, the unpickled `LlmAgent` is the wrong
-    # shape for the code reading it, and the runtime deploys, starts, accepts a
-    # session, and then answers every call with
-    # `'LlmAgent' object has no attribute 'mode'`. Nothing in the build or the
-    # startup logs hints at it.
-    for package in ("google-adk", "google-cloud-aiplatform"):
-        try:
-            out.append(f"{package}=={meta.version(package)}")
-        except meta.PackageNotFoundError:
-            pass
+    # The agent object is *pickled* here and unpickled in the container, so the
+    # two ADKs have to agree. Both directions of disagreement fail, and neither
+    # says so:
+    #
+    #   container newer than us  ->  every call answers
+    #                                "'LlmAgent' object has no attribute 'mode'"
+    #   container older than us  ->  it will not start:
+    #                                "Runner.__init__() got an unexpected
+    #                                 keyword argument 'auto_create_session'"
+    #
+    # The second one is the tell that matters: `auto_create_session` is passed
+    # by *Agent Engine's own serving code*, so the platform tracks a recent ADK
+    # and pinning ours backwards breaks it. Keep this machine on a current
+    # `google-adk` rather than pinning an old one here.
+    #
+    # `google-cloud-aiplatform` is deliberately not pinned — ADK constrains it,
+    # and pinning both invites a resolver conflict in the container.
+    try:
+        out.append(f"google-adk=={meta.version('google-adk')}")
+    except meta.PackageNotFoundError:
+        pass
     return out
 
 
@@ -187,6 +197,14 @@ def deploy(runtime: Runtime, *, with_service_account: bool = True) -> str:
         description=runtime.description,
         requirements=requirements(),
         extra_packages=["consentinel"],
+        # A staging directory per runtime. Without this every deployment
+        # pickles its agent to the *same* object —
+        # `gs://.../agent_engine/agent_engine.pkl` — so two deploys running at
+        # once overwrite each other and a runtime comes up serving whichever
+        # agent won the race. It is invisible from the outside: the deployment
+        # is healthy, answers promptly, and answers as the wrong agent. Caught
+        # only because `cn-triage` replied with a search plan.
+        gcs_dir_name=f"agent_engine/{runtime.name}",
         # No `env_vars` for project or location: Agent Engine sets both itself
         # and rejects the deployment outright if you pass them
         # ("Environment variable name 'GOOGLE_CLOUD_PROJECT' is reserved").

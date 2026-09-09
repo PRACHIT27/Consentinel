@@ -57,6 +57,19 @@ MESSAGES: dict[str, str] = {
 }
 
 
+# A field only *that* agent's answer can contain. This is not belt-and-braces:
+# four deploys running at once used to stage their pickles to the same object,
+# and a runtime came up serving another runtime's agent — healthy, prompt, and
+# wrong. `cn-triage` answering with a search plan is what gave it away, so the
+# check that caught it lives here now.
+EXPECT: dict[str, str] = {
+    "cn-ingest": "citations",          # the permission slip and its quotes
+    "cn-triage": "evidence_quote",     # one page, read and cited
+    "cn-clearance": "human_present",   # what is perceptible in a file
+    "cn-enforcement": "search_queries",  # the sweep plan
+}
+
+
 def engines() -> dict[str, Any]:
     import vertexai
     from vertexai import agent_engines
@@ -139,6 +152,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         try:
             events = ask(engine, message)
             answer = text_of(events)
+            expected = EXPECT.get(name)
+            if expected and expected not in answer:
+                raise RuntimeError_(
+                    f"answered, but not as {name}: expected {expected!r} in the "
+                    f"answer. A runtime serving the wrong agent looks completely "
+                    f"healthy, so this is the only check that catches it.")
             record[name] = {
                 "resource_name": engine.resource_name,
                 "asked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),

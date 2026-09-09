@@ -89,9 +89,12 @@ Stated plainly, because a clean boundary is worth more than an overclaim a judge
 
 A consent registry in Firestore is the spine. Two ADK pipelines read from it in opposite directions
 and share one deterministic rule engine. Discovery fans out across text, audio, video and image
-sweeps. Everything that reads untrusted content — page triage, media triage — runs with **no tools,
-no secrets and no write access**: the harness policy is the boundary, so a triage step cannot fetch,
-store or call anything. The reconciler that decides verdicts never receives page text at all. So a page that tries to instruct our agent
+sweeps. The agents are built with Google's ADK and deployed to **Vertex AI Agent Engine** as four
+runtimes, each with its own service account — page triage on its own, because it is the only
+component that reads hostile third-party content. It runs with **no tools, no secrets and no write
+access**: with a response schema set, ADK refuses tools and agent transfer outright, so a triage
+step cannot fetch, store or call anything. The reconciler that decides verdicts never receives page
+text at all, and has no model — decisions are code, so they run next to the registry on Cloud Run. So a page that tries to instruct our agent
 cannot reach a decision. Model Armor screens injection and PII on top of that. Evidence snapshots
 live in a bucket where no principal in the system holds delete permission.
 

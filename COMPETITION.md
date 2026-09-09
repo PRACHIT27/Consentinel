@@ -76,13 +76,21 @@ locale and result count, and that log is shown on screen in the demo video.
 
 > Projects must run on *"at least one of the following platforms: web, Android, or iOS"*
 
-No Google-exclusive hosting is mandated. **Cloud Run satisfies this**, and Cloud Run is what we
-run: https://consentinel-web-255860737849.us-central1.run.app
+No Google-exclusive hosting is mandated. **Cloud Run satisfies this**, and Cloud Run is where the
+app runs: https://consentinel-web-255860737849.us-central1.run.app
 
-**Do not claim Agent Engine / Agent Runtime in the writeup or the video.** WU-24 is cut and nothing
-is deployed there. What is true, and enough: the agents are built with ADK, every model call goes to
-Gemini through `google-genai` on Vertex AI, and the whole pipeline runs on Cloud Run. Claiming a
-deployment a judge can ask about and we cannot show is worse than a shorter list.
+**WU-24 is done, so Agent Engine can be claimed — in these words.** Four runtimes are deployed
+(`cn-ingest`, `cn-triage`, `cn-clearance`, `cn-enforcement`), each on its own service account, each
+hosting its pipeline's model step. Resource names are in `infra/agent_engine/deployed.json` and the
+answers they gave are in `infra/agent_engine/smoke_output.json`.
+
+What to say: *"the agents are built with ADK and deployed to Vertex AI Agent Engine; the app runs on
+Cloud Run, and the deterministic rule engine that decides every verdict runs in code next to the
+registry."* All of that is checkable.
+
+What **not** to say: that the whole pipeline executes on Agent Engine. It does not — the app calls
+the same agents in-process, because the reconciler reads the registry and has no model. Overstating
+this is the kind of claim a judge can puncture in one question.
 
 ## 6. Submission checklist
 
