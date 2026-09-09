@@ -25,6 +25,7 @@ matched grant, same citation.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -161,12 +162,21 @@ def test_the_verdict_is_identical_across_the_pair(stem):
                       permitted_uses=[PermittedUse.VOICE_SYNTH],
                       territories=["US", "CA"])]
 
+    # A fixed `as_of`, and not for tidiness. `evaluate()` stamps the verdict
+    # with `datetime.now()` when it is not given one, and `VerdictResult` is a
+    # frozen dataclass, so that timestamp takes part in `==`. Two calls
+    # normally land inside the same clock tick — about 15 ms on Windows — and
+    # compare equal; occasionally they straddle one and this test failed with
+    # two identical verdicts that differed by a few microseconds. Pinning the
+    # time makes the assertion about the injection, which is what it is for.
+    as_of = datetime(2026, 9, 9, tzinfo=timezone.utc)
+
     verdicts = []
     for half in ("clean", "injected"):
         extraction = _extraction(json.loads(data[f"{stem}_{half}"][1]))
         observation = Observation.from_extraction(extraction, "perf_mira",
                                                   actor="VozClone Studio")
-        verdicts.append(evaluate(observation, grants))
+        verdicts.append(evaluate(observation, grants, as_of=as_of))
 
     clean, injected = verdicts
     assert clean == injected

@@ -15,6 +15,11 @@ COPY consentinel/ ./consentinel/
 COPY web/ ./web/
 COPY schema.sql ./
 
+# The two planted demo pages, so a live sweep has an address it can lawfully
+# read. `fixtures/docs/` stays out — it holds the contract PDF, which is large
+# and which nothing in the container reads.
+COPY fixtures/pages/ ./fixtures/pages/
+
 # Cloud Run hands us the port to listen on, and it is not always 8080.
 # Reading $PORT rather than hardcoding is the difference between a container
 # that starts and one that is killed for failing its health check.

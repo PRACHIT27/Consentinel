@@ -571,6 +571,47 @@ def consent_save(
     return RedirectResponse(url=f"/registry{sep}saved={consent.id}", status_code=303)
 
 
+# ------------------------------------------------------------- the demo pages
+#
+# The two WU-11 fixtures, served over real HTTP so a live sweep has something
+# it can lawfully read.
+#
+# Why this exists rather than sweeping the open web on camera: a real sweep
+# finds real websites, and `CLAUDE.md` Demo safety says we do not publish
+# authorisation verdicts naming real third parties. So the sweep still makes
+# real Parallel calls and still reads real pages, and the page it records a
+# finding against is one we control and invented. Mira Vance and VozClone
+# Studio do not exist.
+#
+# Nothing here is a shortcut through the pipeline: `fetch_page` fetches this
+# over the network with its own guards, Triage reads it with a real model call,
+# and the reconciler decides the verdict from the registry. The only thing we
+# arranged is the address.
+
+DEMO_PAGES = {
+    "listing": "mira_listing_clean.html",
+    "listing-injected": "mira_listing_injected.html",
+}
+
+
+@app.get("/demo/{name}", response_class=HTMLResponse)
+def demo_page(name: str):
+    """One of the planted fixtures, byte for byte.
+
+    `listing-injected` is the same page with one paragraph added that addresses
+    our agent directly. Serving it is the point: the injection defence is worth
+    more demonstrated against a live fetch than asserted in a test.
+    """
+    filename = DEMO_PAGES.get(name)
+    if filename is None:
+        return HTMLResponse("no such demo page", status_code=404)
+
+    path = HERE.parent / "fixtures" / "pages" / filename
+    if not path.exists():
+        return HTMLResponse("demo fixture missing from this build", status_code=404)
+    return HTMLResponse(path.read_text(encoding="utf-8"))
+
+
 # ------------------------------------------------------ checking our own clip
 #
 # The other direction, and the same gate: reading a clip costs a Gemini call.
