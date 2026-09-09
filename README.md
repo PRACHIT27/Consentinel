@@ -123,7 +123,7 @@ building on them; a few names in `tools/contracts.py` were written from memory.
 ## Demo data
 
 `fixtures/seed.json` seeds a **fictional** performer and licensee, and the reference images and
-cloned-voice sample are generated with Imagen 3 and Gemini TTS. Every synthetic asset in the
+cloned-voice sample are generated with Gemini image generation and Gemini TTS. Every synthetic asset in the
 submission is one we made, of a person who does not exist — so no real individual's likeness appears
 anywhere, and demo safety is satisfied by construction rather than by disclaimer.
 

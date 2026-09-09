@@ -194,8 +194,8 @@ pip install "google-cloud-aiplatform[agent_engines,adk]>=1.101.0"
 | **Gemini Multimodal use cases** | **FR-6.4 asset inspection** — recognisable performer, human voice present |
 | **Video Transcription notebook** | **FR-6** clearance on video/audio deliverables; transcript is content-addressed and cached (DESIGN Part I §6.1) |
 | **Video Captioning notebook** | **FR-6** shot-level description for the clearance record |
-| **Imagen 3** | **Generate the fictional performer's reference images** for the reverse-image sweep (FR-2.4). Also satisfies LE-1 — we need reference photos and must not use a real person's |
-| **Lyria 3 / Gemini Flash TTS** | **Generate the fake "cloned voice" clip** that the clearance demo checks (FR-6). Gives us realistic demo media with no real performer involved |
+| ~~**Imagen 3**~~ → **Gemini image generation** | **Generate the fictional performer's reference images** for the reverse-image sweep (FR-2.4). Also satisfies LE-1 — we need reference photos and must not use a real person's. **Imagen is not enabled on project `consentinel`** (every `imagen-*` id 404s), so `tools/make_demo_media.py` uses `gemini-3-pro-image` on the `global` endpoint. ✅ done |
+| **Gemini Flash TTS** | **Generate the fake "cloned voice" clip** that the clearance demo checks (FR-6). Gives us realistic demo media with no real performer involved. `gemini-2.5-flash-tts`, 6.9s of 24 kHz mono. ✅ done |
 | Multi-speaker podcast generator | Not used |
 | Multimodal sentiment analysis | Not used |
 
@@ -243,7 +243,7 @@ pip install "google-cloud-aiplatform[agent_engines,adk]>=1.101.0"
    ADK agents. Raw Gemini API calls from a Cloud Run container would technically satisfy the SDK list
    but weakly satisfy the framing.
 
-2. **Use Imagen 3 and TTS to manufacture our own demo media.** We need reference images for the
+2. **Use Gemini image generation and TTS to manufacture our own demo media.** We need reference images for the
    reverse-image sweep and a fake cloned-voice clip for the clearance check. Generating both means
    the submission demonstrates the platform's generative tools *and* contains no real person's
    likeness — LE-1 satisfied by construction rather than by disclaimer.
@@ -256,4 +256,4 @@ pip install "google-cloud-aiplatform[agent_engines,adk]>=1.101.0"
 | RA-2 | Confirm Parallel Search locale/region parameters in the full API reference (OQ-1) | A |
 | RA-3 | Confirm whether Extract API returns full page content (OQ-5) | A |
 | RA-4 | Stand up an Agent Engine deployment early — do not discover this on 9 Sep | A |
-| RA-5 | Generate reference images (Imagen 3) + cloned-voice clip (TTS) for fixtures | B |
+| RA-5 | ✅ done — reference image (`gemini-3-pro-image`) + cloned-voice clip (`gemini-2.5-flash-tts`) in `fixtures/media/`, regenerate with `python tools/make_demo_media.py --force` | B |

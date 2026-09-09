@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.7.3`**
+**Doc set version: `v1.7.4`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,38 @@ commit.
 # Log
 
 Newest first.
+
+## v1.7.4 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md`, `COMPETITION.md` §12, `README.md`
+**Type:** PATCH — a factual correction; nothing anyone is building against moves
+
+**Imagen is not available on project `consentinel`.** Every `imagen-*` id returns 404 in both
+`us-central1` and `global`, and none appear in `models.list()`. Three docs said the demo fixtures
+were made with Imagen 3. Corrected to name what actually made them.
+
+**The missing half of WU-35 now exists** — `tools/make_demo_media.py` (mirrors
+`tools/make_contract_pdf.py`, idempotent, `--force` to regenerate):
+
+- `fixtures/media/mira_ref_01.jpg` — 1408×768 JPEG, `gemini-3-pro-image` on the **`global`**
+  endpoint. `seed.json` has pointed `perf_mira_vance.reference_images` at this path since day one and
+  the file was never there; anything resolving it broke, and ImageSweep (WU-32) had no reference
+  image to search with.
+- `fixtures/media/NF_1042_ADR_v03.wav` — 6.9s, 24 kHz mono, `gemini-2.5-flash-tts`. Matches the
+  `filename` on `asset_0412`, so the clearance demo has bytes rather than a string.
+
+Worth knowing: **the Gemini 3 image models are `global`-only on this project** — they 404 in
+`us-central1`, so the location travels with the model rather than coming from `.env`.
+`gemini-2.5-flash-image` does work in `us-central1` if you need the configured region.
+`gemini-2.5-flash-tts` works in `us-central1`.
+
+`requirements-dev.txt`: added `pillow`. The image models return PNG and `seed.json` names a `.jpg`,
+so the tool converts — a PNG wearing a `.jpg` extension works right up until something reads the
+magic bytes.
+
+**Action required:**
+- Swara: WU-35's media half is done and the board card can move. Look at the headshot before it goes
+  on camera — it is a plausible casting photo of nobody, but it is your call
+- Anyone regenerating: `pip install -r requirements-dev.txt` first
 
 ## v1.7.3 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
