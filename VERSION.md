@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.5.1`**
+**Doc set version: `v3.5.2`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,24 @@ commit.
 # Log
 
 Newest first.
+
+## v3.5.2 - 2026-09-09 - Prachit (with Claude)
+**Files:** `README.md` (architecture paragraph, how-it-works step 2)
+**Type:** PATCH - removes a claim; nothing being built against changed
+
+**We were claiming audio, video and image sweeps we have not built.** Three places said discovery
+"fans out across text, audio, video and image sweeps" - the README twice and the Enforcement card on
+the live front page. `consentinel/tools/` has four files and none of them touch media: no
+`fetch_media`, no AudioSweep, no VideoSweep, no ImageSweep, no `vision_web_detection`. WU-26, 27, 28
+and 32 are in the cut order and were never started.
+
+All three now say text only, and name the designed-and-unbuilt ones. The *reasoning* for wanting
+them stays, because it is sound: voice cloning is sold as audio samples and synthetic endorsements
+run as video ads, so text search finds a listing page without confirming the offering is real.
+
+**Action required, Swara:** do not say "we sweep audio and video" in the video or the writeup. The
+true and still strong version is *"text search across five languages, and the clearance side reads
+audio, video and images with Gemini"* - the inward direction really is multimodal.
 
 ## v3.5.1 - 2026-09-09 - Prachit (with Claude)
 **Files:** `README.md` (step 1b in the walkthrough)

@@ -109,6 +109,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"parsed {total} records from {args.fixture.name}; wrote nothing")
         return 0
 
+    # Read `.env` first. Without it this asks for `--project` on a machine
+    # where the project is already configured, which is the same trap
+    # `consentinel/sweep.py` fell into: the file exists, nothing reads it.
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
     project = args.project or os.environ.get("GOOGLE_CLOUD_PROJECT")
     if not project:
         print("set GOOGLE_CLOUD_PROJECT or pass --project", file=sys.stderr)

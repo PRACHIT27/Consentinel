@@ -56,8 +56,9 @@ to* hand over, not merely something useful.
    licensee, what's permitted, which territories, and the validity window — and quotes the source
    sentence for each one. You correct anything wrong and save.
 2. **Sweep.** Gemini writes search phrases in five languages, and Parallel's Search API runs them.
-   Audio and video sweeps pull down sample media, because voice cloning is sold as audio samples and
-   synthetic endorsements run as video ads.
+   Text only today. Audio and video sweeps are designed — voice cloning is sold as audio samples and
+   synthetic endorsements run as video ads, so text search finds the listing page without confirming
+   the offering is real — and they are not built.
 3. **Judge.** Two separate steps, and the separation is the point. Gemini *reads* each page and
    answers a fixed set of questions. Then **plain code** — no model — checks those answers against
    the registry: is there a grant, does it cover this use, this territory, this date, this licensee?
@@ -87,8 +88,10 @@ Stated plainly, because a clean boundary is worth more than an overclaim a judge
 ## Architecture in one paragraph
 
 A consent registry in Firestore is the spine. Two ADK pipelines read from it in opposite directions
-and share one deterministic rule engine. Discovery fans out across text, audio, video and image
-sweeps. The agents are built with Google's ADK and deployed to **Vertex AI Agent Engine** as four
+and share one deterministic rule engine. Discovery is **text search today** — audio, video and
+image sweeps are designed (`DESIGN.md` §2.2) and not built, and the pitch should not imply
+otherwise. What *is* multimodal is the inward direction: the clearance check reads an uploaded
+audio, video or image file with Gemini. The agents are built with Google's ADK and deployed to **Vertex AI Agent Engine** as four
 runtimes, each with its own service account — page triage on its own, because it is the only
 component that reads hostile third-party content. It runs with **no tools, no secrets and no write
 access**: with a response schema set, ADK refuses tools and agent transfer outright, so a triage
