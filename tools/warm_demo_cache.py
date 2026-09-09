@@ -150,6 +150,84 @@ class JsonFileCache:
         return len(list(self.dir.glob("*.json")))
 
 
+class EvidencePack:
+    """WU-37's artifacts, written as the pipeline runs.
+
+    Three outputs, because "it ran" needs different proof for different
+    readers:
+
+    * **`<stamp>-calls.log`** — the readable one-line-per-call log. This is the
+      screenshot the submission needs: `parallel_search sdk=parallel-web
+      api=search ... search_id=search_abc results=3`. A rule that says the
+      integration must be *called at runtime* is answered by a log with real
+      search ids in it, not by a README.
+    * **`<stamp>-audit.jsonl`** — every audit event, one JSON object per line,
+      including the fields the log line elides.
+    * **Firestore**, when credentials allow, through Prachit's `FirestoreAudit`
+      so the trail the UI reads is the same trail.
+
+    The Firestore adapter exists because `FirestoreAudit.append` keeps a fixed
+    subset of keys (`ok`, `reason`, `fail_state`, …) and my rows carry
+    evidence fields it has never heard of — `search_id`, `queries`,
+    `result_count`. Everything unrecognised is nested under `inputs`, which it
+    does preserve, rather than editing his module to know about mine.
+    """
+
+    STANDARD = frozenset({
+        "ts", "actor", "subject_type", "subject_id", "inputs", "tool_calls",
+        "output", "prompt_version", "ok", "fail_state", "reason",
+        "armor_findings", "injection_suspected", "duration_s",
+    })
+
+    def __init__(self, directory: Path, store: Any = None) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        self.audit_path = directory / f"{stamp}-audit.jsonl"
+        self.log_path = directory / f"{stamp}-calls.log"
+        self.events = 0
+        self._downstream = None
+        if store is not None:
+            try:
+                from consentinel.audit import FirestoreAudit
+
+                self._downstream = FirestoreAudit(store, actor="warm_demo_cache")
+            except Exception as exc:  # noqa: BLE001 - the files are the point
+                log.warning("audit will not reach Firestore (%s); the JSONL and "
+                            "the call log are still written", exc)
+
+    def append(self, event: dict[str, Any]) -> None:
+        self.events += 1
+        with self.audit_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, ensure_ascii=False, default=str) + "\n")
+        if self._downstream is None:
+            return
+        extra = {k: v for k, v in event.items() if k not in self.STANDARD}
+        forwarded = {k: v for k, v in event.items() if k in self.STANDARD}
+        if extra:
+            merged = dict(forwarded.get("inputs") or {})
+            merged.update(extra)
+            forwarded["inputs"] = merged
+        try:
+            self._downstream.append(forwarded)
+        except Exception as exc:  # noqa: BLE001 - never lose a sweep over the trail
+            log.warning("audit row not written to Firestore: %s", exc)
+
+    def capture_logs(self) -> None:
+        """Tee every `consentinel.*` log line into the call log."""
+        handler = logging.FileHandler(self.log_path, encoding="utf-8")
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s"))
+        handler.setLevel(logging.INFO)
+        root = logging.getLogger("consentinel")
+        root.addHandler(handler)
+        root.setLevel(logging.INFO)
+
+    def describe(self) -> str:
+        return (f"{self.events} audit rows -> {self.audit_path.name}, "
+                f"call log -> {self.log_path.name}"
+                + ("" if self._downstream else " (Firestore not reached)"))
+
+
 class NullStore:
     """The sweep wants a store; warming does not want to touch the registry."""
 
@@ -182,8 +260,25 @@ def load_seed(performer_id: str) -> tuple[Performer, list[Consent]]:
     return performer, consents
 
 
+def _registry_store() -> Any:
+    """The real registry, or None on a machine without credentials.
+
+    Used only so the audit trail lands where the UI reads it. A missing store
+    costs the Firestore half of the evidence, not the run.
+    """
+    try:
+        from consentinel.store.firestore_store import FirestoreStore
+
+        return FirestoreStore()
+    except Exception as exc:  # noqa: BLE001 - the file artifacts are the point
+        log.warning("no registry store (%s); evidence will be files only", exc)
+        return None
+
+
 def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool,
-         cache_kind: str = "auto") -> int:
+         cache_kind: str = "auto",
+         evidence_dir: Path = Path("evidence/runtime"),
+         fresh: bool = False) -> int:
     """Run the pipeline live and record everything it asks for."""
     if is_enabled():
         raise SystemExit(
@@ -191,8 +286,19 @@ def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool,
             f"Unset {ENV_VAR} and try again.")
 
     performer, consents = load_seed(performer_id)
-    cache = make_cache(cache_kind, cache_dir)
-    deps = HarnessDeps(cache=cache, audit=MemoryAudit())
+    if fresh:
+        # WU-37: the strongest evidence is a log line that says `cache=miss`
+        # with a real latency and a real search_id beside it. A cached run
+        # proves the answer was stored, not that the call was made.
+        from consentinel.harness.ports import NullCache
+
+        cache = NullCache()
+        log.warning("--fresh: cache bypassed, every call goes to the network")
+    else:
+        cache = make_cache(cache_kind, cache_dir)
+    evidence = EvidencePack(evidence_dir, store=_registry_store())
+    evidence.capture_logs()
+    deps = HarnessDeps(cache=cache, audit=evidence)
 
     # 1 — the plan. The model version costs one call; the deterministic one is
     # free and equally cacheable downstream.
@@ -234,6 +340,8 @@ def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool,
     log.info("read %d pages, %d refused; %s", read, refused,
              describe_cache(cache))
     print(f"\nwarm: {describe_cache(cache)}")
+    print(f"evidence: {evidence.describe()}")
+    print(f"          in {evidence_dir.resolve()}")
     print(f"now run the demo with {ENV_VAR}=true")
     return 0 if read else 1
 
@@ -286,6 +394,14 @@ def main() -> int:
                     help="defaults to CACHE_DIR from .env, else ./.cache")
     ap.add_argument("--check", action="store_true",
                     help="verify the cache instead of filling it")
+    ap.add_argument("--fresh", action="store_true",
+                    help="bypass the cache so every call is live. Use this to "
+                         "produce runtime evidence: a cached run proves the "
+                         "answer was stored, not that the call was made")
+    ap.add_argument("--evidence-dir", type=Path, default=Path("evidence/runtime"),
+                    help="where the WU-37 artifacts go: the call log for the "
+                         "submission screenshot, and one JSONL of every audit "
+                         "row")
     ap.add_argument("--cache", choices=("auto", "firestore", "file"),
                     default="auto",
                     help="auto prefers WU-19's FirestoreCache and falls back "
@@ -310,7 +426,8 @@ def main() -> int:
     if args.check:
         return check(args.performer, cache_dir, args.cache)
     return warm(args.performer, cache_dir,
-                use_model_planner=args.model_planner, cache_kind=args.cache)
+                use_model_planner=args.model_planner, cache_kind=args.cache,
+                evidence_dir=args.evidence_dir, fresh=args.fresh)
 
 
 if __name__ == "__main__":
