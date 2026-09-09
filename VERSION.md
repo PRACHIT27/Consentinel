@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.5.2`**
+**Doc set version: `v3.5.3`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,28 @@ commit.
 # Log
 
 Newest first.
+
+## v3.5.3 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md` section 2
+**Type:** PATCH - records that an implementation does not match its design
+
+**The web app does not invoke the four runtimes.** DESIGN.md said it did. It does not: `web/app.py`
+imports the agents and runs them in-process, so the request path is Cloud Run -> Gemini, not
+Cloud Run -> Agent Engine -> Gemini. There are zero references to `agent_engines` or
+`reasoningEngines` in `web/` or `consentinel/`.
+
+The runtimes themselves are real - deployed, one service account each, each one answered a live call
+recorded in `infra/agent_engine/smoke_output.json`. The missing piece is only the hop from the app
+to them, and closing it is contained: an ADK `Runner` client per runtime, a timeout, and a fail-safe
+for a cold runtime, which the harness already expresses as `FailState`.
+
+Not attempted before submission on purpose - rewriting the request path of a rehearsed demo an hour
+out is the wrong trade. Spotted by Prachit reading the architecture against the code, which is the
+only way this kind of gap gets found.
+
+**Action required, anyone writing the submission:** say *"the agents are built with ADK and deployed
+to Agent Engine; the app runs the same agents on Cloud Run, next to the registry the rule engine
+reads."* Do not say the upload calls Agent Engine.
 
 ## v3.5.2 - 2026-09-09 - Prachit (with Claude)
 **Files:** `README.md` (architecture paragraph, how-it-works step 2)

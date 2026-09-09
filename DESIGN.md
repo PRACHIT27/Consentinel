@@ -331,7 +331,27 @@ ingests hostile third-party content.
 | `cn-clearance` | AssetIngest, Paperwork, Inspector, Manifest | `consentinel-clearance@` | Internal assets |
 | `cn-ingest` | ConsentIngest | `consentinel-ingest@` | User uploads |
 
-Web UI runs on **Cloud Run** and invokes the four runtimes.
+Web UI runs on **Cloud Run**.
+
+> **Not built as designed, as of 9 Sep.** This line used to say the web UI
+> "invokes the four runtimes". It does not. `web/app.py` imports the agents and
+> runs them in-process, so the request path is **Cloud Run → Gemini**, not
+> **Cloud Run → Agent Engine → Gemini**. There are zero references to
+> `agent_engines` or `reasoningEngines` anywhere in `web/` or `consentinel/`.
+>
+> The runtimes are real: deployed, each on its own service account, and each
+> answered a live call (`infra/agent_engine/smoke_output.json`). What is missing
+> is the hop from the app to them.
+>
+> Closing it is a contained change — an ADK `Runner` client per runtime, a
+> timeout, and a fail-safe when a runtime is cold, which the harness already
+> expresses as `FailState`. It was not attempted an hour before the submission
+> deadline, because the request path of a rehearsed demo is the wrong thing to
+> rewrite under time pressure.
+>
+> Until then, the accurate sentence is: **the agents are built with ADK and
+> deployed to Agent Engine; the app runs the same agents on Cloud Run, next to
+> the registry the rule engine reads.**
 
 **Why not one runtime per agent (11 deployments):** each deploy takes minutes and would be repeated
 on every change, ADK composes `SequentialAgent` in-process, and eleven network hops buy nothing that
