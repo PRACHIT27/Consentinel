@@ -296,6 +296,10 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `fetch_page` + `web_risk_check` — *Vedant* (WU-08, 60 tests; SSRF guards, fails closed)
 - [x] `Triage` + extraction validators — *Vedant* (WU-09/WU-10, 67 tests; no tools, quote verbatim)
 - [x] Injection canary + the planted demo page — *Vedant* (WU-11, 43 tests)
+- [x] **Model Armor, actually implemented** — *Vedant* (WU-29 armor half, 24 tests). The docs
+      described it and only `NullArmor` existed; `consentinel/model_armor.py` is the real screen.
+      **Templates must be created once:** `bash infra/model_armor/01_templates.sh`, and the app must
+      pass `armor=ModelArmor()` into `HarnessDeps` — until it does, screening silently no-ops
 - [x] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12/WU-13, 50 tests; no model)
 - [x] Reliability policy + visibly-degraded sweeps — *Vedant* (WU-14, 39 tests)
 - [x] `DEMO_MODE` across every client + warm-cache script — *Vedant* (WU-20, 9 tests)

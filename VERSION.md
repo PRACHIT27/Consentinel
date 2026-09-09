@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.0`**
+**Doc set version: `v3.2.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,53 @@ commit.
 # Log
 
 Newest first.
+
+## v3.2.1 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), `requirements.txt`, plus new code and one infra script
+**Type:** PATCH - it implements a control the docs already described
+
+**Model Armor is real now. 536 passing (24 new).**
+
+`DESIGN.md` Part III §3 and `COMPETITION.md` §12 both presented Model Armor as part of the design.
+The harness has had an `ArmorPort` since WU-00 and every agent that touches untrusted text names a
+template - but the only implementation was `NullArmor`, which no-ops. The docs claimed a control the
+code did not have. `consentinel/model_armor.py` closes that, so no doc needed softening.
+
+**The asymmetry is the design, and failing safe means opposite things in the two directions:**
+
+| Direction | Template | On a match | If the screen itself fails |
+|---|---|---|---|
+| page text -> triage | `consentinel-triage-in` | **flag, never block** | carry on, labelled `armor_unavailable` |
+| contract -> ingest | `consentinel-ingest-in` | flag | carry on, labelled |
+| draft notice -> out | `consentinel-notice-out` | **block** | **block** |
+
+Inbound refuses to block because a page trying to manipulate us is frequently the very page that is
+infringing - suppressing it would throw away the finding. And refusing to *read* a page because a
+labelling service is down would lose findings for no safety gain: the structural defences (no tools,
+schema-only output, quote-must-be-verbatim) are what actually stop injection. Outbound is the
+opposite on both counts, because an unscreened notice is exactly what that template exists to
+prevent and nothing is lost by making a human look.
+
+`armor_unavailable` is reported as a finding rather than silence, so "Model Armor found nothing" and
+"Model Armor did not look" stay distinguishable - the same distinction the sweep report draws.
+
+**`csam` is not a badge.** It sets `Verdict.escalate`, which is DESIGN Part III §4: nothing is
+snapshotted, nothing is rendered, the address and a hash are kept, and a person is told.
+`agents/snapshot.py` already implements the withholding.
+
+**A bug worth repeating, caught by the one test that asserted a non-match:** the first version of
+`_matched()` tested `"MATCH_FOUND" in state_name`. `NO_MATCH_FOUND` ends with `MATCH_FOUND`, so it
+reported **every filter on every page as matched**. It now checks the negative case first, and a
+test runs the mapping against the installed `FilterMatchState` enum rather than my fakes.
+
+**Action required:**
+- **Whoever deploys:** run `bash infra/model_armor/01_templates.sh` once. It is idempotent and
+  leaves an existing template alone. Templates are regional; the client endpoint follows
+  `GOOGLE_CLOUD_LOCATION`
+- **Prachit:** `web/app.py` builds `HarnessDeps` - add `armor=ModelArmor(audit=...)`. Until it does,
+  screening no-ops silently, which looks exactly like "nothing was found".
+  `python -c "from consentinel.model_armor import describe; print(describe())"` says which you have
+- `requirements.txt`: added `google-cloud-modelarmor`
 
 ## v3.2.0 - 2026-09-09 - Vedant (with Claude)
 **Files:** `VERSION.md`, `CLAUDE.md` (status), `requirements.txt`
