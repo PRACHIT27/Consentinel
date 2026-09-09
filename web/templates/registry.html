@@ -2,6 +2,13 @@
 {% block title %}Registry — Consentinel{% endblock %}
 
 {% block content %}
+{% if saved %}
+  <div class="banner ok" style="background:var(--ok-bg);color:var(--ok)">
+    <strong>Saved.</strong> <code>{{ saved }}</code> is now in the registry, and every later answer
+    will be checked against it.
+  </div>
+{% endif %}
+
 <h1>Registry</h1>
 <p class="lead">Who we protect, and exactly what each studio is allowed to do with an AI copy of them.
    Every answer this system gives is checked against these records.</p>

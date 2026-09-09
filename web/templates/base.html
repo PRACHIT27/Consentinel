@@ -16,6 +16,7 @@
       <a href="/"          class="{{ 'on' if nav == 'registry' }}">Registry</a>
       <a href="/findings"  class="{{ 'on' if nav == 'findings' }}">Found on the web</a>
       <a href="/clearance" class="{{ 'on' if nav == 'clearance' }}">Our own footage</a>
+      {% if k %}<a class="nav-action" href="/consents/new?k={{ k }}">Add a permission slip</a>{% endif %}
     </nav>
   </div>
 </header>

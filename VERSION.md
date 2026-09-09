@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.3.0`**
+**Doc set version: `v2.5.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,74 @@ commit.
 
 Newest first.
 
+## v2.5.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md`, plus `infra/iam/model_invoker_role.yaml` and the deployed service
+**Type:** MINOR
+
+**Reading a contract now works on the live URL.** 9.3 seconds end to end: performer, licensee,
+US and CA, the 2026-2028 term, 8 quotes across 6 pages, `voice_synth` and `archival_reuse` ticked,
+`face_replace` correctly left unticked.
+
+**Action gating is live.** `CONSENTINEL_ACTION_TOKEN` is mounted from Secret Manager
+(`consentinel-action-token`), readable only by `consentinel-web@`. Verified on the deployed service:
+the three read screens return 200 with no key; `/consents/new` and `/consents/extract` return 403
+with no key and 403 with a wrong key.
+
+**Two things that are honestly not as designed, and should not be claimed otherwise.**
+
+1. **The web app now holds `roles/aiplatform.user`.** `DESIGN.md` Part II section 3 says Gemini
+   calls belong to `cn-ingest` and the web app should hold no model permission at all. That is still
+   the right design, but Agent Runtime does not exist yet, so `extract_consent` runs in-process
+   inside the Cloud Run container and the container therefore needs to call Gemini. **Do not claim
+   in the demo that the web app cannot reach a model — right now it can.** The fix is WU-24, not an
+   IAM change.
+2. **A single-permission custom role did not work on its own.** `infra/iam/model_invoker_role.yaml`
+   grants only `aiplatform.endpoints.predict`, which should be enough to call a published model. It
+   was still refused after binding and after cycling the instances, so `roles/aiplatform.user` was
+   added on top. Unresolved whether that was IAM propagation, a cached token, or the custom role
+   genuinely being insufficient for publisher models. The custom role is still bound and the file is
+   committed - worth narrowing back to it after the deadline rather than now.
+
+**The failure was well-behaved, which is worth noting.** The missing permission surfaced as a 422
+with a readable message on the upload screen, not a crash or a blank page, and nothing was written.
+That is the fail-safe path in DESIGN.md Part I section 0 doing its job on a real error.
+
+**Action required:**
+- Prachit: WU-34 should narrow this back once Agent Runtime exists. Until then the IAM story in the
+  demo has one honest caveat
+## v2.4.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `web/` upload and confirm screens
+**Type:** MINOR
+
+**The contract reader now has a way in from the UI.** Upload a PDF, see what Gemini read with every
+quote beside the field it supports, correct anything wrong, then save. Verified end to end against
+the real contract: performer, licensee, US and CA, the 2026-2028 term, the payment trigger, 6 pages,
+8 quotes, `voice_synth` and `archival_reuse` ticked and `face_replace` correctly left unticked. 80
+tests.
+
+**Actions are now gated; reads are not.** `web/security.py`. The three screens stay public because a
+judge has to be able to open the URL, but reading a contract is a Gemini call and a sweep is a
+Gemini call plus a Parallel call per query. On a public address with no gate a crawler can drain the
+quota we need for the demo. The key travels as `?k=` and as a hidden form field. It is a shared
+secret, not a login - it stops casual and accidental use, and should not be mistaken for identity.
+
+**Two parts of WU-23 were deliberately not built**, because both would have been empty shells:
+- the decision trail needs audit rows, and WU-18 has not been built, so the seeded findings have none
+- the case file needs WU-16, which is Vedant's and not started
+The clearance board part already existed on the `/clearance` screen.
+
+**Known cosmetic point, left alone on purpose:** the citation shown is the model's transcription
+rather than the document's own characters - Gemini returns curly quotes where the page has straight
+ones. It renders correctly in a browser and the text is verbatim-equivalent. Snapping each quote
+back to the page's exact bytes needs a normalised-to-original index map, which is not worth the
+hours today.
+
+**Action required:**
+- Set `CONSENTINEL_ACTION_TOKEN` on the Cloud Run service before the demo, or the upload screen is
+  open to the internet
+- Vedant: `agents/common/gemini.py` has `generate_json`. Use it rather than building a client - and
+  note the client must be held in a module global or it closes mid-request
+
 ## v2.3.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
 **Type:** MINOR
@@ -192,6 +260,38 @@ both correct and faster.
 - Swara: delete the existing board and import these two files into fresh databases. Do not merge
   into the current one - it has triplicate cards and no status, assignee or estimate columns
 
+## v2.1.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `Dockerfile`, `.gcloudignore`, `requirements.txt`
+**Type:** MINOR
+
+**WU-25 is done. The app is live.**
+
+    https://consentinel-web-255860737849.us-central1.run.app
+
+Runs as its own service account, `consentinel-web@`, holding one role: Firestore read/write. No
+secrets, no evidence writes. Cold hit 0.5s, warm 0.3s.
+
+Three things this deploy uncovered that would have cost us tomorrow:
+
+- **`google-cloud-firestore` was missing from `requirements.txt`** on this branch. Vedant had added
+  it on his, so the container would have failed to import on first start. Caught by a dependency
+  check before building, not by the build.
+- **Cloud Run's frontend intercepts `/healthz`** and returns its own 404 before the request reaches
+  the app. Our route was defined and visible in the app's own schema, yet unreachable. Renamed to
+  `/_health`. Worth knowing before anyone configures a startup probe against a path that silently
+  never arrives.
+- **Cloud Build's default service account needed three roles** it did not have on a fresh project:
+  storage.objectViewer, artifactregistry.writer, logging.logWriter. The first deploy failed on
+  reading its own uploaded source.
+
+`.gcloudignore` keeps tests, tools, docs, notion exports and the demo PDF out of the image.
+
+**Action required:**
+- Everyone: the URL above is public and read-only. There are no POST routes yet, so there is nothing
+  to abuse. **The moment an action endpoint is added it needs a token**, or anyone can spend our
+  Gemini and Parallel quota
+- Swara: this is the URL for the submission form
+
 ## v2.0.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `consentinel/store/base.py`, `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `DESIGN.md`
 **Type:** MAJOR - frozen-contract change
@@ -230,6 +330,7 @@ the web where cloned voices are sold.
 - **Vedant, WU-06:** add known-bad hosts to Parallel's `source_policy.exclude_domains` - cheapest
   defence of all, since those pages never enter the pipeline
 - **Prachit, WU-22:** the findings screen must render both new states without showing page content
+
 ## v1.8.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `web/`
 **Type:** MINOR
@@ -651,3 +752,4 @@ the metrics dashboard. Never cut `adversarial_injection`, the four deployments, 
 - Vedant: **T-07** first — it blocks the agent side *and* the architecture freeze
 - Swara: import `BUILD_PROMPTS.md` and `ARCHITECTURE.md` into the Notion page; hold off on polished design
   until v1.0.0
+
