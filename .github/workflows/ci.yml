@@ -1,0 +1,108 @@
+name: CI
+
+# WU-31: the adversarial evalset and the verdict matrix run on every commit.
+# Both are deterministic — no model call, no credentials — which is exactly why
+# they can be a gate rather than a nightly job.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A second push to the same branch supersedes the first. Two days before a
+  # deadline, waiting on a stale run is the last thing anybody needs.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests and evalsets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint the things that are actually errors
+        # F and E9 only: undefined names, unused imports, syntax errors. The
+        # repo has hundreds of style findings (Optional[] rather than X | None)
+        # that are consistent with itself, and failing CI on those would train
+        # everyone to ignore CI.
+        run: ruff check consentinel tests tools evalsets --select F,E9
+
+      - name: Offline suite, including both evalsets
+        # test_firestore_store.py and test_seed.py talk to the real project, so
+        # they are excluded here rather than failing for want of credentials.
+        # Everything else — 400+ tests, the SSRF guards, the injection canary,
+        # the rule engine, adversarial_injection and verdict_matrix — needs
+        # nothing but Python.
+        run: |
+          python -m pytest tests/ -q \
+            --ignore=tests/test_firestore_store.py \
+            --ignore=tests/test_seed.py
+
+      - name: Name the security gates that just ran
+        # So a reviewer scrolling the log sees the two that matter.
+        run: |
+          python -m pytest -q \
+            tests/test_evalsets.py \
+            tests/test_injection_canary.py \
+            tests/test_reconciler.py \
+            tests/test_fetch_page.py -v --no-header | tail -40
+
+  # `adk eval` runs the real Gemini agent, so it needs Vertex credentials and
+  # cannot be a per-commit gate. It is here, manual, so the evalsets are run
+  # against the model before submission rather than only replayed offline.
+  adk-eval:
+    name: adk eval (needs credentials)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        continue-on-error: true
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+      - name: adk eval adversarial_injection
+        if: steps.auth.outcome == 'success'
+        env:
+          GOOGLE_CLOUD_PROJECT: consentinel
+          GOOGLE_CLOUD_LOCATION: us-central1
+          GOOGLE_GENAI_USE_VERTEXAI: "true"
+        run: |
+          adk eval evalsets/triage_agent \
+            evalsets/adversarial_injection.evalset.json \
+            --config_file_path evalsets/test_config.json \
+            --print_detailed_results
+
+      - name: Say why it was skipped
+        if: steps.auth.outcome != 'success'
+        run: |
+          echo "No GOOGLE_CREDENTIALS secret, so the model-backed eval was"
+          echo "skipped. The same pairs ran offline in the tests job."

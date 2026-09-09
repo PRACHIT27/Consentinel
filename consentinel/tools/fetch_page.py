@@ -30,7 +30,6 @@ import hashlib
 import ipaddress
 import json
 import logging
-import os
 import socket
 import time
 from dataclasses import dataclass, field

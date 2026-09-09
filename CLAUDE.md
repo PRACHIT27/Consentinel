@@ -272,6 +272,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `Reconciler` (deterministic rules, unit-tested) — *Vedant* (WU-12/WU-13, 50 tests; no model)
 - [x] Reliability policy + visibly-degraded sweeps — *Vedant* (WU-14, 39 tests)
 - [x] `DEMO_MODE` across every client + warm-cache script — *Vedant* (WU-20, 9 tests)
+- [x] `adversarial_injection` + `verdict_matrix` evalsets, running in CI — *Vedant* (WU-31)
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
 - [ ] `DossierWriter` + evidence snapshots — *Vedant*
