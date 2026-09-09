@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Case file — Consentinel{% endblock %}
+
+{% block content %}
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Case file &middot; {{ finding.id }}</p>
+      <h1>{{ finding.url | hostname }}</h1>
+      <p>Everything counsel needs in one place: what was found, the sentence it breaches, where the
+         copy of the page lives, and a draft notice. <strong>Nothing is sent from here.</strong></p>
+    </div>
+    <a class="btn ghost" href="/findings{{ q }}">Back to findings</a>
+  </div>
+
+  {% if not dossier %}
+    <div class="panel locked" style="margin-top:22px; max-width:none;">
+      <h3>No case file yet
+        {% if not can_act %}<span class="tag">drafting needs the team key</span>{% endif %}
+      </h3>
+      <p class="desc" style="margin-bottom:0;">A case file is drafted on request rather than for
+         every finding, because writing one costs a model call and most findings never need one.</p>
+      {% if can_act %}
+        <form method="post" action="/findings/{{ finding.id }}/dossier" style="margin-top:16px;">
+          <input type="hidden" name="k" value="{{ k }}">
+          <button class="btn" type="submit">Draft the case file</button>
+        </form>
+      {% endif %}
+    </div>
+  {% else %}
+
+    {% set stamp, label = finding.verdict | verdict_stamp %}
+    <div class="tally" style="margin-top:22px;">
+      <span class="pill">{{ label }}</span>
+      {% if bundle.check %}<span class="pill">{{ bundle.check | replace('_', ' ') }}</span>{% endif %}
+      {% if bundle.snapshot_uris %}<span class="pill">{{ bundle.snapshot_uris | length }} snapshot(s)</span>
+      {% else %}<span class="pill warn">no snapshot captured</span>{% endif %}
+      {% if bundle.injection_markers %}<span class="pill warn">the page tried to instruct us</span>{% endif %}
+    </div>
+
+    <div class="panel" style="max-width:none;">
+      <h3>What was found</h3>
+      <p class="desc" style="margin-bottom:14px;">{{ bundle.reasoning | replace('_', ' ') }}</p>
+      {% if bundle.evidence_quote %}
+        <div class="clause-quote">{{ bundle.evidence_quote }}
+          <span class="mono" style="display:block;margin-top:6px;font-size:0.72rem;opacity:0.8;">
+            {{ finding.url }}</span>
+        </div>
+      {% endif %}
+      <p class="hint" style="margin-top:12px;">Aimed at
+         {{ finding.target_territories | join(', ') or 'no stated territory' }};
+         found searching in {{ finding.discovered_locale or 'an unrecorded locale' }}.</p>
+    </div>
+
+    <div class="panel" style="max-width:none;">
+      <h3>The sentence it breaches</h3>
+      {% set c = consents.get(bundle.clause.consent_id) if bundle.clause else none %}
+      {% if bundle.clause and bundle.clause.text %}
+        <div class="clause-quote">{{ bundle.clause.text }}
+          {% if bundle.clause.page %}
+            <span class="mono" style="display:block;margin-top:6px;font-size:0.72rem;opacity:0.8;">page {{ bundle.clause.page }}</span>
+          {% endif %}
+        </div>
+        <p class="hint" style="margin-top:12px;">{{ bundle.clause.licensee }} &mdash;
+           {% if c %}{{ c.permitted_uses | map('ev') | map('replace', '_', ' ') | join(', ') }}
+           in {{ c.territories | join(', ') }}{% endif %}</p>
+      {% else %}
+        <p class="desc" style="margin-bottom:0;">No grant was matched, so there is no clause to
+           quote. That is the finding: nothing in the registry permits this use.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel" style="max-width:none;">
+      <h3>The copy we keep</h3>
+      {% if bundle.snapshot_uris %}
+        {% for uri in bundle.snapshot_uris %}
+          <p class="mono" style="font-size:0.74rem; color:var(--text-dim); margin:0 0 6px; word-break:break-all;">{{ uri }}</p>
+        {% endfor %}
+        <p class="hint" style="margin-top:10px;">Held with a hold on the object, so nobody &mdash;
+           including us &mdash; can delete or alter it. A page that changes after we read it is the
+           normal case, not the exception.</p>
+      {% else %}
+        <p class="desc" style="margin-bottom:0;">No snapshot was captured for this finding, so the
+           case file rests on the quote above and the reading that produced it.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel" style="max-width:none;">
+      <h3>Draft notice</h3>
+      {% if dossier.draft_notice %}
+        <div class="notice-box">{{ dossier.draft_notice }}</div>
+      {% else %}
+        <p class="desc">No draft was produced. Every sentence in a notice has to be supported by the
+           evidence above, and a draft that could not meet that was refused rather than tidied up.</p>
+      {% endif %}
+      <div class="human-flag">Draft only. Consentinel has no way to send this &mdash; there is no
+        send path in the product, on purpose. Read it, correct it, and send it from your own
+        counsel's account.</div>
+    </div>
+
+  {% endif %}
+
+  <p class="disclaimer">Demo data. The address above ends in a suffix we control or in
+     <span class="mono">.invalid</span>; no real company appears in this case file.</p>
+</div>
+{% endblock %}

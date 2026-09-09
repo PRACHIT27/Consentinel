@@ -346,6 +346,12 @@ twice daily. **Read it before you start, update it before you finish.**
 real `client.search(...)` calls across 5 locales, and the log is committed at
 `evidence/published/`. That closes the gap `COMPETITION.md` §11 calls fatal.
 
+**The whole workflow runs from the hosted URL, and `/try` walks it.** Contract in -> sweep ->
+case file with a draft notice -> clip checked against the same rules. The sample files are served
+from the app (`/demo/samples/...`), so a visitor does not have to find a performer agreement of
+their own. `tools/extra_seed.py` adds the rows one grant cannot show - expired, expiring, worldwide,
+undeclared.
+
 **A judge can run the sweep themselves.** `POST /sweep` on the hosted URL, behind the action key:
 Gemini writes the phrases, Parallel searches five languages live, the planted page at
 `/demo/listing` is fetched and read, and the rule engine decides. Real third-party results are

@@ -15,10 +15,13 @@ COPY consentinel/ ./consentinel/
 COPY web/ ./web/
 COPY schema.sql ./
 
-# The two planted demo pages, so a live sweep has an address it can lawfully
-# read. `fixtures/docs/` stays out — it holds the contract PDF, which is large
-# and which nothing in the container reads.
+# The planted demo pages, so a live sweep has an address it can lawfully read.
 COPY fixtures/pages/ ./fixtures/pages/
+
+# The sample contract and clips, so a judge can download them from the app and
+# put them straight back into it. Together under half a megabyte.
+COPY fixtures/docs/ ./fixtures/docs/
+COPY fixtures/media/ ./fixtures/media/
 
 # Cloud Run hands us the port to listen on, and it is not always 8080.
 # Reading $PORT rather than hardcoding is the difference between a container

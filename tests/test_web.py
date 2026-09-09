@@ -326,3 +326,19 @@ def test_the_demo_page_is_served_for_the_sweep_to_read(client):
     assert "Mira Vance" in body
     assert client.get("/demo/listing-injected").status_code == 200
     assert client.get("/demo/nonsense").status_code == 404
+
+
+def test_the_walkthrough_hands_over_the_files_it_asks_for(client):
+    """A hosted URL and no login still leaves a visitor guessing, and the two
+    most interesting paths need a file they do not have. Every sample the
+    walkthrough names must actually download."""
+    body = client.get("/try").text
+    assert "Try it yourself, in four steps." in body
+
+    for name in ("contract.pdf", "voice-clip.wav", "face-still.jpg"):
+        assert f"/demo/samples/{name}" in body, name
+        r = client.get(f"/demo/samples/{name}")
+        assert r.status_code == 200, name
+        assert len(r.content) > 1000, name
+
+    assert client.get("/demo/samples/../../.env").status_code == 404

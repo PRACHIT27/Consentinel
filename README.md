@@ -7,11 +7,10 @@ the rights to.
 Built for the Agentic Cinema hackathon — Gemini on Vertex AI, Google Cloud, and Parallel Search, on
 the **Parallel** track.
 
-**Try it:** https://consentinel-web-255860737849.us-central1.run.app
+**Try it:** https://consentinel-web-255860737849.us-central1.run.app/try
 
-Four screens, no login. The registry holds the permission slips; the sweep shows what was found on
-the web and whether it is allowed; the clearance screen answers the same question about our own
-footage. Every name and result is invented — see [Demo data](#demo-data).
+No login, nothing to install. That page hands you the three sample files and walks the four steps
+below. Every name, face, voice and result is invented — see [Demo data](#demo-data).
 
 ---
 
@@ -111,6 +110,44 @@ Diagrams: [ARCHITECTURE.md](ARCHITECTURE.md). Full design: [DESIGN.md](DESIGN.md
 | [COMPETITION.md](COMPETITION.md) | Hackathon rules, submission checklist, resource mapping |
 | [BUILD_PROMPTS.md](BUILD_PROMPTS.md) | What to build, one ready-to-paste prompt per work unit |
 | [VERSION.md](VERSION.md) | Change log for the docs and the frozen contract |
+
+## Try it in five minutes
+
+Open **https://consentinel-web-255860737849.us-central1.run.app/try** and download the three sample
+files from that page, or take them from `fixtures/` here.
+
+Reading is open to anyone. The four steps below each cost a model call, so they need the team key —
+add `?k=<key>` to any URL. **The key is in our Devpost submission.** That is the whole gate: looking
+is free, spending is not, and a crawler on a public address should not be able to drain the quota
+the demo runs on.
+
+| # | Step | Where | What to expect |
+|---|---|---|---|
+| 1 | **Read a contract** | Registry → *Add permission slip* → `contract.pdf` | Six fields filled in, each with the sentence it came from and a page number. Any field whose quote is not really on that page is dropped, not guessed |
+| 2 | **Sweep the web** | Enforcement Sweep → *Run sweep now* | Gemini writes phrases in five languages, Parallel searches, pages are fetched and read. Takes about a minute the first time |
+| 3 | **Open a case file** | any finding → *Open the case file* | What was found, the clause it breaches, the copy of the page, and a draft notice. There is no send button |
+| 4 | **Check your own clip** | Clearance Check → `voice-clip.wav` | Submit it as a *voice* for `US` and it clears. Submit the same file for `BR` and it is blocked — the grant is scoped to the US and Canada. Try `face-still.jpg` as a *face*: blocked, the contract withholds visual likeness |
+
+Two things worth doing while you are in there:
+
+- **`/demo/listing-injected`** is the page the sweep reads, plus one paragraph telling our agent to
+  report the listing as authorised. Sweep it: the verdict does not move. The reading agent holds no
+  tools and can only fill in fields, so an instruction inside a page has nowhere to go.
+- **The sweep withholds real websites.** A live search for our invented performer returns real
+  companies — we count them, log them, and do not publish an authorisation verdict naming any of
+  them from a public demo. The finding you see recorded is a page we host ourselves.
+
+### More demo rows
+
+`fixtures/seed.json` is deliberately small. For a fuller registry — an expired grant, one expiring
+in six weeks, a worldwide grant, a performer with nothing on file, and an asset nobody declared:
+
+```bash
+python -m tools.extra_seed             # add them
+python -m tools.extra_seed --remove    # take them out again
+```
+
+The interesting rows are the ones that look identical until you read the dates.
 
 ## Setup
 

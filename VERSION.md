@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.4.0`**
+**Doc set version: `v3.5.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,26 @@ commit.
 # Log
 
 Newest first.
+
+## v3.5.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `README.md` (a walkthrough), `CLAUDE.md` Status
+**Type:** MINOR - the workflow is complete end to end and a visitor can run all of it
+
+**The enforcement direction now ends in an artefact.** `DossierWriter` existed and nothing called
+it, so a finding stopped at a verdict. `POST /findings/{id}/dossier` drafts the case file and
+`/findings/{id}/dossier` shows it: what was found, the clause it breaches, the copy of the page, and
+a draft notice. **There is no send button and there never will be** - `Dossier.sendable` returns
+False as a property, so a UI asking gets a straight no from the domain object.
+
+**`/try` is the walkthrough**, and it hands over the three files it asks for. A hosted URL with no
+login still leaves a visitor guessing what to click, and the two most interesting paths need a file
+they do not have. `/demo/samples/{contract.pdf,voice-clip.wav,face-still.jpg}` serve them; the
+Dockerfile ships `fixtures/docs/` and `fixtures/media/` for it.
+
+**`tools/extra_seed.py`** adds two more performers and rows the single seeded grant cannot show: an
+expired grant, one expiring in six weeks, a worldwide one, and an asset whose vendor declared
+nothing. Deliberately *not* in `fixtures/seed.json` - that file is the frozen contract's worked
+example and tests read it. `--remove` takes them out again.
 
 ## v3.4.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `DESIGN.md` §3 (IAM table + a new note), `CLAUDE.md` Status

@@ -16,6 +16,5 @@ __pycache__/
 .env
 .env.local
 .claude/
-fixtures/docs/
 consentinel_user_journeys_v5.png
 requirements-dev.txt

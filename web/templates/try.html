@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Try it yourself — Consentinel{% endblock %}
+
+{% block content %}
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Walkthrough</p>
+      <h1>Try it yourself, in four steps.</h1>
+      <p>Everything below runs for real: a contract read by Gemini, a live search across five
+         languages, a clip listened to, and a verdict decided by plain code reading the registry.
+         The files you need are here &mdash; all of them invented by us.</p>
+    </div>
+  </div>
+
+  {% if not can_act %}
+    <div class="banner" style="max-width:none;">
+      <strong>The four steps need the team key.</strong> Reading a contract, sweeping, checking a
+      clip and drafting a notice each cost a model call, and this address is public. Add
+      <span class="mono">?k=&lt;key&gt;</span> to the URL &mdash; the key is in our Devpost entry.
+      Without it every screen is still readable, which is the point of the gate: looking is open,
+      spending is not.
+    </div>
+  {% endif %}
+
+  <div class="panel" style="max-width:none;">
+    <h3>The files</h3>
+    <p class="desc">Download, then upload them back. The performer, the studio and the seller do
+       not exist; the voice and the face were generated with Gemini, so no real person's likeness
+       appears anywhere.</p>
+    <div class="register">
+      {% for name, entry in samples.items() %}
+        <div class="reg-row" style="grid-template-columns:1.1fr 2.4fr 0.7fr; cursor:default;">
+          <div class="primary"><span class="mono">{{ name }}</span></div>
+          <div style="font-size:0.86rem; color:var(--text-dim); line-height:1.5;">{{ entry[2] }}</div>
+          <div><a class="btn ghost small" href="/demo/samples/{{ name }}">Download</a></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <h4 class="section-label" style="margin-top:34px;">The four steps</h4>
+
+  <div class="panel" style="max-width:none;">
+    <h3>1 &middot; Put a permission slip on file</h3>
+    <p class="desc">Registry &rarr; <em>Add permission slip</em> &rarr; upload
+       <span class="mono">contract.pdf</span>. Gemini fills in six fields and has to quote the
+       sentence it took each one from; any field whose quote is not found on the page it claims is
+       dropped rather than guessed. You confirm before it is saved, because a wrong slip quietly
+       makes every later answer wrong.</p>
+    {% if can_act %}<a class="btn" href="/consents/new{{ q }}">Start here</a>{% endif %}
+  </div>
+
+  <div class="panel" style="max-width:none;">
+    <h3>2 &middot; Sweep the web</h3>
+    <p class="desc">Enforcement Sweep &rarr; <em>Run sweep now</em>. Gemini writes search phrases in
+       five languages, Parallel runs them, and each page that comes back is fetched and read. Real
+       third-party results are counted and <strong>withheld</strong> &mdash; we will not publish an
+       authorisation verdict naming a real company from a public demo &mdash; so the finding you see
+       recorded is a page we host ourselves at
+       <a href="/demo/listing" class="mono">/demo/listing</a>. Open it: the verdict quotes that page
+       word for word.</p>
+    {% if can_act %}<a class="btn ghost" href="/findings{{ q }}">Go to the sweep</a>{% endif %}
+  </div>
+
+  <div class="panel" style="max-width:none;">
+    <h3>3 &middot; Open the case file</h3>
+    <p class="desc">On any finding, <em>Open the case file</em>. It draws together what was found,
+       the clause it breaches, the copy of the page we keep, and a draft notice. There is no send
+       button and there never will be &mdash; the product has no way to send anything.</p>
+  </div>
+
+  <div class="panel" style="max-width:none;">
+    <h3>4 &middot; Check your own footage</h3>
+    <p class="desc">Clearance Check &rarr; upload <span class="mono">voice-clip.wav</span> as a
+       synthetic <em>voice</em> for <span class="mono">US</span>: it clears. Submit the same file for
+       <span class="mono">BR</span>: blocked, because the grant is scoped to the US and Canada. Then
+       try <span class="mono">face-still.jpg</span> as a synthetic <em>face</em>: blocked, because
+       clause 10(a) withholds visual likeness.</p>
+    <p class="hint" style="margin-top:10px;">Same rule engine as step 2. A studio gets exactly the
+       answer about its own footage that a stranger would get about theirs, which is the whole
+       point of building one engine instead of two.</p>
+    {% if can_act %}<a class="btn ghost" href="/clearance{{ q }}">Go to clearance</a>{% endif %}
+  </div>
+
+  <div class="panel" style="max-width:none;">
+    <h3>Worth a look while you are here</h3>
+    <p class="desc"><a href="/demo/listing-injected" class="mono">/demo/listing-injected</a> is the
+       same listing with one paragraph added that tells our agent to report the page as authorised.
+       Sweep it and the verdict does not move: the reading agent holds no tools and can only fill in
+       fields, so an instruction inside a page has nowhere to go. The finding gains a badge saying
+       the page tried it.</p>
+  </div>
+
+  <p class="disclaimer">Mira Vance, Halcyon Pictures, Northlight Post and VozClone Studio are all
+     invented. Every address a verdict is published about is either one we control or ends in
+     <span class="mono">.invalid</span>, which can never resolve to a real website.</p>
+</div>
+{% endblock %}

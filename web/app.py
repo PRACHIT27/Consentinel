@@ -49,6 +49,9 @@ from consentinel.model_armor import ModelArmor, describe as describe_armor
 from consentinel.obs import JsonLogger, Metrics, tracer_for
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
+from consentinel.agents.dossier_writer import DossierWriter, build_bundle
+from consentinel.store.base import Dossier as StoredDossier
+from consentinel.store.base import FindingStatus
 from consentinel.sweep import run as sweep_run
 from web import security
 
@@ -649,6 +652,108 @@ def run_sweep(request: Request, k: Optional[str] = Form(None)):
                                 f"&cached={summary.searches_cached}", status_code=303)
 
 
+# --------------------------------------------------------------- the case file
+#
+# Where the outward direction ends. A verdict is not the deliverable — the
+# deliverable is a file counsel can act on: what was found, the sentence it
+# breaches, where the snapshot lives, and a draft notice.
+#
+# **There is no send button and there never will be.** `Dossier.sendable` is a
+# property that returns False, so a UI asking "can I send this?" gets a straight
+# no from the domain object rather than from a button nobody added yet (FR-5.5).
+
+
+def _verdict_of(finding) -> "object":
+    """Rebuild the verdict object from the stored row.
+
+    The dossier builder wants a `VerdictResult` and the registry stores the
+    three fields a verdict owns. Rebuilding beats storing the whole object:
+    the row stays the frozen contract's shape, and anything the builder needs
+    beyond those fields is a sign the finding is missing something.
+    """
+    from consentinel.agents.reconciler import VerdictResult
+
+    return VerdictResult(
+        verdict=finding.verdict,
+        check="recorded",
+        reason=finding.reasoning or "",
+        matched_consent_id=finding.matched_consent_id,
+        breached_consent_id=None,
+        citation=finding.evidence_quote,
+        territories_outside=tuple(finding.target_territories or ()),
+    )
+
+
+@app.post("/findings/{finding_id}/dossier")
+def build_dossier(finding_id: str, k: Optional[str] = Form(None)):
+    """Draft the case file for one finding. Costs a model call, so it is gated."""
+    security.check(k)
+    store = get_store()
+
+    finding = next((f for f in store.list_findings() if f.id == finding_id), None)
+    if finding is None:
+        return RedirectResponse(url=f"/findings{_qs(k)}", status_code=303)
+
+    performer = next((p for p in store.list_performers()
+                      if p.id == finding.performer_id), None)
+    consents = [c for p in store.list_performers() for c in store.list_consents(p.id)]
+
+    bundle = build_bundle(finding, performer, _verdict_of(finding), consents=consents)
+    result = DossierWriter(deps=HarnessDeps(
+        audit=get_audit(), cache=get_cache(), armor=get_armor(),
+        tracer=tracer, metrics=metrics,
+    )).write(bundle)
+
+    store.put_dossier(StoredDossier(
+        id=f"dos_{finding.id}",
+        finding_id=finding.id,
+        evidence_bundle=bundle.as_dict(),
+        draft_notice=result.draft or "",
+    ))
+    if result.ok:
+        finding.status = FindingStatus.DOSSIER_DRAFTED
+        store.upsert_finding(finding)
+
+    log.info("case file drafted", finding_id=finding.id, ok=result.ok,
+             reason=result.reason, grounding_failures=list(result.grounding_failures),
+             repairs=result.repairs, from_cache=result.from_cache)
+    metrics.counter("dossier.drafted", outcome="ok" if result.ok else "refused")
+
+    return RedirectResponse(url=f"/findings/{finding.id}/dossier{_qs(k)}",
+                            status_code=303)
+
+
+@app.get("/findings/{finding_id}/dossier", response_class=HTMLResponse)
+def case_file(request: Request, finding_id: str, k: Optional[str] = None):
+    """The case file. Readable without the key — it is the artefact worth showing."""
+    store = get_store()
+    finding = next((f for f in store.list_findings() if f.id == finding_id), None)
+    if finding is None:
+        return RedirectResponse(url=f"/findings{_qs(k)}", status_code=303)
+
+    stored = store.get_dossier(finding.id)
+    performer = next((p for p in store.list_performers()
+                      if p.id == finding.performer_id), None)
+    consents = {c.id: c for p in store.list_performers()
+                for c in store.list_consents(p.id)}
+
+    return templates.TemplateResponse(
+        request,
+        "dossier.html",
+        {
+            "nav": "findings",
+            "k": k or "",
+            "q": _qs(k),
+            "can_act": _can_act(k),
+            "finding": finding,
+            "performer": performer,
+            "consents": consents,
+            "dossier": stored,
+            "bundle": (stored.evidence_bundle if stored else None),
+        },
+    )
+
+
 # ------------------------------------------------------------- the demo pages
 #
 # The two WU-11 fixtures, served over real HTTP so a live sweep has something
@@ -670,6 +775,65 @@ DEMO_PAGES = {
     "listing": "mira_listing_clean.html",
     "listing-injected": "mira_listing_injected.html",
 }
+
+# Files a visitor can download from the app and put straight back into it.
+# Handing someone a URL and telling them to "upload a contract" is not a demo
+# they can run — they would have to find a signed performer agreement first.
+#
+# Every one of these is ours and invented: the agreement is generated by
+# `tools/make_contract_pdf.py`, and the voice and the face were generated with
+# Gemini. No real person's likeness or paperwork is in here.
+SAMPLE_FILES = {
+    "contract.pdf": (
+        "docs/mira_vance_halcyon_agreement.pdf", "application/pdf",
+        "A six-page performer agreement. Clause 9 grants synthetic voice in the "
+        "US and Canada; clause 10(a) withholds visual likeness. Upload it on "
+        "Permission Registry."),
+    "voice-clip.wav": (
+        "media/NF_1042_ADR_v03.wav", "audio/wav",
+        "A generated ADR line. Check it as a synthetic voice for US release and "
+        "it clears; check the same file for BR and it is blocked on territory."),
+    "face-still.jpg": (
+        "media/mira_ref_01.jpg", "image/jpeg",
+        "A generated still. Check it as a synthetic face and it is blocked — "
+        "the contract withholds visual likeness."),
+}
+
+
+@app.get("/try", response_class=HTMLResponse)
+def try_it(request: Request, k: Optional[str] = None):
+    """The walkthrough. Four steps, in order, with the files to do them with.
+
+    A hosted URL and a login-free console still leave a visitor guessing what to
+    click first, and the two most interesting paths — reading a contract and
+    checking a clip — need a file they do not have.
+    """
+    return templates.TemplateResponse(
+        request,
+        "try.html",
+        {
+            "nav": "try",
+            "k": k or "",
+            "q": _qs(k),
+            "can_act": _can_act(k),
+            "samples": SAMPLE_FILES,
+        },
+    )
+
+
+@app.get("/demo/samples/{name}")
+def sample_file(name: str):
+    """Hand over one sample file."""
+    from fastapi.responses import FileResponse
+
+    entry = SAMPLE_FILES.get(name)
+    if entry is None:
+        return HTMLResponse("no such sample", status_code=404)
+    relative, media_type, _ = entry
+    path = HERE.parent / "fixtures" / relative
+    if not path.exists():
+        return HTMLResponse("sample missing from this build", status_code=404)
+    return FileResponse(path, media_type=media_type, filename=name)
 
 
 @app.get("/demo/{name}", response_class=HTMLResponse)
