@@ -816,3 +816,23 @@ fieldset.field{ border:none; padding:0; margin:0 0 16px; }
 .banner strong{ color:var(--text); }
 
 .steps{ margin:0; padding-left:20px; font-size:0.88rem; color:var(--text-dim); line-height:1.7; }
+
+/* A panel describing an action that is switched off on this link. Dashed, so
+   it reads as "this exists and is not available to you" rather than as a
+   control that failed to work. */
+.panel.locked{
+  border-style:dashed;
+  background:transparent;
+}
+.panel.locked h3{ color:var(--text-dim); }
+.panel h3 .tag{
+  margin-left:8px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:0.66rem;
+  font-weight:500;
+  padding:3px 8px;
+  border-radius:3px;
+  background:var(--gold-soft);
+  color:var(--gold);
+  vertical-align:middle;
+}

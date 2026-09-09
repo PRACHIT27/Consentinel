@@ -104,6 +104,20 @@
         <span class="hint" style="display:inline;">Nothing defaults to fine to ship.</span>
       </div>
     </form>
+  {% else %}
+    {#
+      No key on this link, so the upload is off. Say so, and say what it does.
+      An invisible feature reads as a missing one — a judge opening the public
+      URL should not conclude the product cannot check a clip.
+    #}
+    <div class="panel locked" style="margin-top:22px; max-width:none;">
+      <h3>Check a clip <span class="tag">needs the team key</span></h3>
+      <p class="desc" style="margin-bottom:0;">Upload a clip and the same rules answer for your own
+         footage: fine to ship, blocked, or unchecked. It reads the file with Gemini, so it costs a
+         model call &mdash; which is why it is switched off on this public link rather than left open
+         to a passing crawler. The rows below were produced by exactly this path; open any one to see
+         the clause it rests on.</p>
+    </div>
   {% endif %}
 
   {% if blockers %}

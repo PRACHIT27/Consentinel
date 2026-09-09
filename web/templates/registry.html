@@ -17,8 +17,21 @@
       <p>The spine of the system. Add a contract and Consentinel reads it, fills in the fields, and
          quotes the exact sentence behind each one.</p>
     </div>
-    {% if can_act %}<a class="btn" href="/consents/new{{ q }}">+ Add permission slip</a>{% endif %}
+    {% if can_act %}
+      <a class="btn" href="/consents/new{{ q }}">+ Add permission slip</a>
+    {% else %}
+      <span class="tag" style="align-self:flex-start;">adding a slip needs the team key</span>
+    {% endif %}
   </div>
+
+  {% if not can_act %}
+    <div class="banner" style="max-width:none;">
+      <strong>Reading a contract is switched off on this link.</strong> Drop in a signed agreement
+      and Gemini fills in six fields and quotes the sentence behind each one &mdash; every row below
+      was produced that way, and you can see the quotes by opening a row. It costs a model call, so
+      it needs the team key rather than being left open on a public address.
+    </div>
+  {% endif %}
 
   <div class="toolbar">
     <input class="search" id="registrySearch" placeholder="Search performer or licensee&hellip;"

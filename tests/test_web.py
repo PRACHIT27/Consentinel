@@ -265,3 +265,24 @@ def test_an_unreadable_contract_says_so_rather_than_saving_nothing(client, monke
     assert r.status_code == 422
     assert "OCR" in r.text
     assert client.store.saved == []
+
+
+def test_a_gated_action_says_it_exists_rather_than_vanishing(monkeypatch):
+    """Without the key the upload forms are off. They must still be *described*.
+
+    An invisible feature reads as a missing one: the first person to open the
+    public link and conclude the product cannot check a clip was Prachit, on
+    the day of the deadline.
+    """
+    monkeypatch.setenv(security.ENV_VAR, "s3cret")
+    webapp.set_store(FakeStore())
+    c = TestClient(webapp.app)
+
+    clearance = c.get("/clearance").text
+    assert "needs the team key" in clearance
+    assert "Check against the registry" not in clearance, "the form itself stays off"
+
+    registry = c.get("/registry").text
+    assert "switched off on this link" in registry
+
+    webapp.set_store(None)
