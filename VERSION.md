@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.5.1`**
+**Doc set version: `v1.5.2`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,43 @@ commit.
 # Log
 
 Newest first.
+
+## v1.5.2 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
+**Type:** PATCH — no contract or requirement moved
+
+**WU-06 QueryPlanner is done. 90 tests passing (31 new).**
+
+`consentinel/agents/query_planner.py` — an ADK `LlmAgent` with `output_schema` set, temperature 0,
+`tools=()`. Setting `output_schema` is what removes the free-form channel: ADK then refuses tools
+and agent transfer, so the model can only fill in `PlanOut`.
+
+Things worth knowing if you touch discovery:
+
+- **The plan is a list of batches, not queries.** Each batch is one `parallel_search` call:
+  `{objective, search_queries (2-3), locale, modality}`. `iter_search_calls(plan)` yields
+  ready-made kwargs for WU-05, including `max_results` already divided by the batch count.
+- **The 25-candidate budget is enforced in the plan**, not at collection time: 8 batches max,
+  `results_per_batch = 25 // len(batches)`. A budget enforced only downstream is a budget already
+  spent.
+- **`MODALITY_TERMS` holds the search vocabulary per language** (en, pt, es, ja, hi × voice, face,
+  performance). Add a language there and it becomes plannable everywhere. A grant territory whose
+  language is missing from that table is *skipped, not searched in English* — an English query aimed
+  at a French market finds nothing and looks like coverage, which is worse than an admitted gap.
+- **Validation rejects English wearing a locale tag.** A ja/hi batch must contain non-ASCII, and no
+  non-English batch may contain an English modality term ("voice clone", "deepfake ad", …). The
+  model gets exactly one repair attempt, carrying the validator's own message.
+- **A model failure degrades to `deterministic_plan(...)`** built from the vocabulary table, with
+  `SearchPlan.degraded=True` and a reason. The sweep still runs and still meets FR-2.2 — a broken
+  model costs plan quality, never coverage.
+- Grants are context, never an exclusion list (hard rule 4): granted territories get *more*
+  coverage, because permission in one territory and shipment in another is the thing we hunt.
+- Cache key includes `prompt_version` (hard rule 8) and the instruction text, 24h TTL.
+
+**Action required:**
+- Whoever writes WU-07: consume `iter_search_calls(plan)`, and check `plan.degraded` — a degraded
+  plan means the sweep should be reported as partial, not clean
+- Prachit: nothing. This adds `consentinel/agents/`, touches nothing of yours
 
 ## v1.5.1 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (Parallel SDK surface, status), plus new code under `consentinel/tools/`
