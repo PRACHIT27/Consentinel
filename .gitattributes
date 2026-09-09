@@ -1,0 +1,51 @@
+# We are three people on Windows with core.autocrlf=true. Without this file git
+# guesses, and it guesses wrong in two ways that matter:
+#
+#  1. Binary fixtures (the contract PDF, generated reference images, the voice
+#     clip) get line endings rewritten and stop parsing. Git's auto-detection
+#     usually catches it, but "usually" is not a property we want on the
+#     evidence path.
+#  2. Worse: .githooks/pre-commit is a shell script. Given CRLF endings, sh
+#     fails with a bad-interpreter error and the VERSION.md hook silently stops
+#     working — on someone else's machine, quietly, which is the worst way for a
+#     guard to fail.
+
+* text=auto
+
+# Shell scripts must be LF or they do not run.
+.githooks/*     text eol=lf
+*.sh            text eol=lf
+
+# Source and docs: normalise to LF in the repo.
+*.py            text eol=lf
+*.md            text eol=lf
+*.sql           text eol=lf
+*.json          text eol=lf
+*.csv           text eol=lf
+*.txt           text eol=lf
+*.toml          text eol=lf
+*.cfg           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.html          text eol=lf
+*.css           text eol=lf
+Dockerfile      text eol=lf
+.env.example    text eol=lf
+
+# Fixtures and artefacts: never touch these.
+*.pdf           binary
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.svg           text eol=lf
+*.wav           binary
+*.mp3           binary
+*.m4a           binary
+*.mp4           binary
+*.mov           binary
+*.exr           binary
+*.ico           binary
+*.zip           binary
+*.woff          binary
+*.woff2         binary
