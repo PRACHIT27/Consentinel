@@ -1,0 +1,26 @@
+{
+  "cn-enforcement": {
+    "resource_name": "projects/255860737849/locations/us-central1/reasoningEngines/5946877413861359616",
+    "deployed_at": "2026-09-09T17:16:08+00:00",
+    "project": "consentinel",
+    "location": "us-central1"
+  },
+  "cn-ingest": {
+    "resource_name": "projects/255860737849/locations/us-central1/reasoningEngines/2464469001997123584",
+    "deployed_at": "2026-09-09T17:16:27+00:00",
+    "project": "consentinel",
+    "location": "us-central1"
+  },
+  "cn-triage": {
+    "resource_name": "projects/255860737849/locations/us-central1/reasoningEngines/2142461628640133120",
+    "deployed_at": "2026-09-09T17:16:43+00:00",
+    "project": "consentinel",
+    "location": "us-central1"
+  },
+  "cn-clearance": {
+    "resource_name": "projects/255860737849/locations/us-central1/reasoningEngines/1376849691987148800",
+    "deployed_at": "2026-09-09T17:16:44+00:00",
+    "project": "consentinel",
+    "location": "us-central1"
+  }
+}

@@ -109,6 +109,13 @@ def _runtimes() -> dict[str, Runtime]:
     }
 
 
+# Not installed in an agent container. The dev tools are obvious; the web
+# packages are there because the runtime serves no HTTP of its own — Cloud Run
+# does that. Every one of them is another chance for the build to fail on a
+# dependency it never needed.
+SKIP = {"pytest", "ruff", "fastapi", "uvicorn[standard]", "jinja2", "python-multipart"}
+
+
 def requirements() -> list[str]:
     """The app's own requirements, minus the dev tools.
 
@@ -116,12 +123,28 @@ def requirements() -> list[str]:
     the prompt, so the container needs what our imports need. Sending the same
     file the app uses is the only version of this that cannot drift.
     """
+    import importlib.metadata as meta
+
     out = []
     for line in (REPO / "requirements.txt").read_text(encoding="utf-8").splitlines():
         line = line.split("#")[0].strip()
-        if not line or line in ("pytest", "ruff"):
+        if not line or line in SKIP:
             continue
         out.append(line)
+
+    # Pin the two packages that have to match this machine exactly.
+    #
+    # The agent object is *pickled* here and unpickled in the container. If the
+    # container resolves a different ADK, the unpickled `LlmAgent` is the wrong
+    # shape for the code reading it, and the runtime deploys, starts, accepts a
+    # session, and then answers every call with
+    # `'LlmAgent' object has no attribute 'mode'`. Nothing in the build or the
+    # startup logs hints at it.
+    for package in ("google-adk", "google-cloud-aiplatform"):
+        try:
+            out.append(f"{package}=={meta.version(package)}")
+        except meta.PackageNotFoundError:
+            pass
     return out
 
 
@@ -148,6 +171,14 @@ def deploy(runtime: Runtime, *, with_service_account: bool = True) -> str:
 
     vertexai.init(project=PROJECT, location=LOCATION, staging_bucket=STAGING)
 
+    # `extra_packages` paths are resolved and tarred **relative to the working
+    # directory**, so this has to run from the repo root for the archive to
+    # contain `consentinel/` at its top level. An absolute path builds a
+    # tarball the container unpacks somewhere `import consentinel` cannot see
+    # it, and the only symptom is the deployment failing to start with
+    # "No module named 'consentinel'" — after the build has already succeeded.
+    os.chdir(REPO)
+
     app = agent_engines.AdkApp(agent=runtime.build(), enable_tracing=True)
 
     kwargs: dict[str, Any] = dict(
@@ -155,7 +186,7 @@ def deploy(runtime: Runtime, *, with_service_account: bool = True) -> str:
         display_name=runtime.name,
         description=runtime.description,
         requirements=requirements(),
-        extra_packages=[str(REPO / "consentinel")],
+        extra_packages=["consentinel"],
         # No `env_vars` for project or location: Agent Engine sets both itself
         # and rejects the deployment outright if you pass them
         # ("Environment variable name 'GOOGLE_CLOUD_PROJECT' is reserved").
