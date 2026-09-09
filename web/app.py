@@ -105,9 +105,13 @@ templates.env.filters["ev"] = enum_value
 # --------------------------------------------------------------------- routes
 
 
-@app.get("/healthz")
+@app.get("/_health")
 def healthz() -> JSONResponse:
-    """Cloud Run pings this. It must not touch Firestore — a health check that
+    """Our own liveness check. Named `_health` and not `healthz`,
+    because Cloud Run's frontend intercepts `/healthz` and returns its own 404
+    before the request ever reaches the app.
+
+    It must not touch Firestore — a health check that
     depends on the database reports the app as dead when the database is merely
     slow, and then the container gets restarted for no reason."""
     return JSONResponse({"ok": True})

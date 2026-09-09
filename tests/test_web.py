@@ -95,7 +95,7 @@ def test_health_does_not_touch_the_database(client):
     """A health check that depends on Firestore reports the app as dead when the
     database is merely slow, and the container gets restarted for nothing."""
     webapp.set_store(None)
-    r = client.get("/healthz")
+    r = client.get("/_health")
     assert r.status_code == 200 and r.json() == {"ok": True}
 
 

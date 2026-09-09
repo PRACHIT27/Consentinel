@@ -11,6 +11,7 @@ parallel-web
 # Google Cloud services
 google-cloud-vision            # reverse-image (web detection) discovery
 google-cloud-storage           # immutable evidence snapshots
+google-cloud-firestore     # the registry, findings and audit trail
 google-cloud-secret-manager    # secrets in deploy (resources page, Phase 5)
 
 # Web app (hosted URL for the submission)

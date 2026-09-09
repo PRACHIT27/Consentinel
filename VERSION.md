@@ -140,6 +140,38 @@ hours today.
 - Vedant: `agents/common/gemini.py` has `generate_json`. Use it rather than building a client - and
   note the client must be held in a module global or it closes mid-request
 
+## v2.1.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `Dockerfile`, `.gcloudignore`, `requirements.txt`
+**Type:** MINOR
+
+**WU-25 is done. The app is live.**
+
+    https://consentinel-web-255860737849.us-central1.run.app
+
+Runs as its own service account, `consentinel-web@`, holding one role: Firestore read/write. No
+secrets, no evidence writes. Cold hit 0.5s, warm 0.3s.
+
+Three things this deploy uncovered that would have cost us tomorrow:
+
+- **`google-cloud-firestore` was missing from `requirements.txt`** on this branch. Vedant had added
+  it on his, so the container would have failed to import on first start. Caught by a dependency
+  check before building, not by the build.
+- **Cloud Run's frontend intercepts `/healthz`** and returns its own 404 before the request reaches
+  the app. Our route was defined and visible in the app's own schema, yet unreachable. Renamed to
+  `/_health`. Worth knowing before anyone configures a startup probe against a path that silently
+  never arrives.
+- **Cloud Build's default service account needed three roles** it did not have on a fresh project:
+  storage.objectViewer, artifactregistry.writer, logging.logWriter. The first deploy failed on
+  reading its own uploaded source.
+
+`.gcloudignore` keeps tests, tools, docs, notion exports and the demo PDF out of the image.
+
+**Action required:**
+- Everyone: the URL above is public and read-only. There are no POST routes yet, so there is nothing
+  to abuse. **The moment an action endpoint is added it needs a token**, or anyone can spend our
+  Gemini and Parallel quota
+- Swara: this is the URL for the submission form
+
 ## v2.3.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
 **Type:** MINOR
