@@ -6,7 +6,6 @@ the app's own behaviour: what it renders, what it escapes, and what it refuses.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 
 import pytest

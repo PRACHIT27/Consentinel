@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from consentinel.audit import FirestoreAudit, ToolCall
+from consentinel.audit import FirestoreAudit
 from consentinel.harness.policy import FailState, HarnessPolicy
 from consentinel.harness.ports import HarnessDeps
 from consentinel.harness.runner import Harness

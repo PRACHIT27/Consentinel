@@ -9,9 +9,10 @@ google-genai
 parallel-web
 
 # Google Cloud services
+google-cloud-firestore         # the registry behind Store (WU-01); its tests skip without it
 google-cloud-vision            # reverse-image (web detection) discovery
+google-cloud-webrisk           # is this address already known-dangerous? (WU-08, contract v2.0.0)
 google-cloud-storage           # immutable evidence snapshots
-google-cloud-firestore     # the registry, findings and audit trail
 google-cloud-secret-manager    # secrets in deploy (resources page, Phase 5)
 
 # Tracing. Cloud Run propagates a trace header, so a span joins the request's

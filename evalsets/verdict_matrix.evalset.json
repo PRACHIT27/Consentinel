@@ -1,0 +1,296 @@
+{
+  "eval_set_id": "verdict_matrix",
+  "name": "verdict_matrix",
+  "description": "All seven FR-4.2 rule branches plus territory scoping. Deterministic — the reconciler makes no model call — so this is exact-match, fast, stable, and free to run in CI on every commit. `user_content` is the observation plus the grants on file as JSON; `final_response` is the expected verdict and the check that produced it. Every grant here belongs to the fictional performer perf_mira.",
+  "creation_timestamp": 1757462400.0,
+  "eval_cases": [
+    {
+      "eval_id": "a_no_grant_at_all",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "a_no_grant_at_all_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"BR\"], \"actor\": \"VozClone Studio\", \"confidence\": 0.9, \"evidence_quote\": \"Compre o clone de voz de Mira Vance por R$ 49,90.\"}, \"consents\": []}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"no_grant\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "b_modality_not_permitted",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "b_modality_not_permitted_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"face\", \"target_territories\": [\"US\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.9, \"evidence_quote\": \"Generate videos with the actress's face in minutes.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\", \"CA\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"modality_not_permitted\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "c_territory_outside_grant",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "c_territory_outside_grant_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"BR\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.9, \"evidence_quote\": \"Entrega para todo o Brasil.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\", \"CA\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"territory_outside_grant\", \"territories_outside\": [\"BR\"]}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "c2_territory_scoping_partial_coverage",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "c2_territory_scoping_partial_coverage_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"note\": \"The ticket's headline case: licensed for US and CA, this listing targets US AND BR. Partial coverage is not coverage, and the reasoning must name BR.\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\", \"BR\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.95, \"evidence_quote\": \"Ships to the United States and Brazil.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\", \"CA\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"territory_outside_grant\", \"territories_outside\": [\"BR\"], \"reason_contains\": \"BR\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "d_grant_expired",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "d_grant_expired_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"as_of\": \"2026-09-09T12:00:00+00:00\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.9, \"evidence_quote\": \"Commercial licence for US buyers.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\"], \"valid_from\": \"2025-01-01T00:00:00+00:00\", \"valid_to\": \"2026-01-01T00:00:00+00:00\"}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"grant_expired\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "d2_grant_not_yet_effective",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "d2_grant_not_yet_effective_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"as_of\": \"2026-09-09T12:00:00+00:00\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.9, \"evidence_quote\": \"Commercial licence for US buyers.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\"], \"valid_from\": \"2027-01-01T00:00:00+00:00\", \"valid_to\": \"2028-01-01T00:00:00+00:00\"}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"grant_not_yet_effective\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "e_actor_not_licensee",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "e_actor_not_licensee_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": \"VozClone Studio\", \"confidence\": 0.9, \"evidence_quote\": \"Sold by VozClone Studio.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"actor_not_licensee\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "f_confidence_below_threshold",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "f_confidence_below_threshold_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"BR\"], \"actor\": \"VozClone Studio\", \"confidence\": 0.4, \"evidence_quote\": \"Voz sintetica disponivel.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\", \"CA\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"ambiguous\", \"check\": \"confidence_below_threshold\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "g_authorized",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "g_authorized_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.95, \"evidence_quote\": \"Licensed voice double, produced by Aurora Studios.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\", \"CA\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"authorized\", \"check\": \"covered_by_grant\", \"matched_consent_id\": \"c_voice\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "h_uncitable_verdict_degrades",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "h_uncitable_verdict_degrades_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"note\": \"FR-4.4: a decisive verdict with nothing to cite is not storable. It degrades to ambiguous rather than crashing a sweep.\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"BR\"], \"actor\": \"VozClone Studio\", \"confidence\": 0.9, \"evidence_quote\": null}, \"consents\": []}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"ambiguous\", \"check\": \"no_citation\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "i_unknown_actor_inside_a_grant",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "i_unknown_actor_inside_a_grant_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"note\": \"Not knowing who is selling is not the same as knowing it is a third party, and it is certainly not permission.\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": null, \"confidence\": 0.9, \"evidence_quote\": \"Synthetic voice, US buyers only.\"}, \"consents\": [{\"id\": \"c_voice\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"voice_synth\"], \"territories\": [\"US\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"ambiguous\", \"check\": \"actor_unknown\"}"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "j_archival_reuse_is_not_synthesis",
+      "creation_timestamp": 1757462400.0,
+      "conversation": [
+        {
+          "invocation_id": "j_archival_reuse_is_not_synthesis_1",
+          "creation_timestamp": 1757462400.0,
+          "user_content": {
+            "role": "user",
+            "parts": [
+              {
+                "text": "{\"note\": \"Permission to reuse existing footage is not permission to synthesise a new performance. If the team decides otherwise, this case changes with _MODALITY_PERMISSIONS.\", \"observation\": {\"performer_id\": \"perf_mira\", \"modality\": \"voice\", \"target_territories\": [\"US\"], \"actor\": \"Aurora Studios\", \"confidence\": 0.9, \"evidence_quote\": \"AI voice clone, US buyers.\"}, \"consents\": [{\"id\": \"c_archival\", \"performer_id\": \"perf_mira\", \"licensee\": \"Aurora Studios\", \"permitted_uses\": [\"archival_reuse\"], \"territories\": [\"US\"]}]}"
+              }
+            ]
+          },
+          "final_response": {
+            "role": "model",
+            "parts": [
+              {"text": "{\"verdict\": \"unauthorized\", \"check\": \"modality_not_permitted\"}"}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
