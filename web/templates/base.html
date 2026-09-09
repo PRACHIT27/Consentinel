@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Consentinel{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="/">Consentinel</a>
+    <p class="tagline">Permission slips for AI copies of performers</p>
+    <nav>
+      <a href="/"          class="{{ 'on' if nav == 'registry' }}">Registry</a>
+      <a href="/findings"  class="{{ 'on' if nav == 'findings' }}">Found on the web</a>
+      <a href="/clearance" class="{{ 'on' if nav == 'clearance' }}">Our own footage</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="wrap">
+  <p>Demo data only. Mira Vance, Halcyon Pictures and every result shown here are invented.
+     No real person&rsquo;s name, face or voice appears anywhere in this application.</p>
+</footer>
+
+</body>
+</html>

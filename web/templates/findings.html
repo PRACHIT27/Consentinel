@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Found on the web — Consentinel{% endblock %}
+
+{% block content %}
+<h1>Found on the web</h1>
+<p class="lead">Places selling or using an AI copy of someone we protect. Each one is checked against
+   the registry, and every answer names the reason and shows the sentence it rests on.</p>
+
+<div class="tally">
+  <span class="pill bad">{{ counts.unauthorized }} not allowed</span>
+  <span class="pill ok">{{ counts.authorized }} allowed</span>
+  <span class="pill warn">{{ counts.ambiguous }} unclear</span>
+</div>
+
+{% for f in findings %}
+  {% set style, label = f.verdict | verdict_style %}
+  <article class="card finding {{ style }}">
+    <div class="finding-head">
+      <span class="pill {{ style }}">{{ label }}</span>
+      {% if f.is_commercial %}<span class="pill muted">being sold</span>{% endif %}
+      {% if f.modality %}<span class="pill muted">{{ f.modality | ev }}</span>{% endif %}
+      {% if f.injection_suspected is defined and f.injection_suspected %}
+        <span class="pill warn">tried to instruct our agent</span>
+      {% endif %}
+    </div>
+
+    <p class="url">{{ f.url }}</p>
+
+    {% if f.evidence_quote %}
+      <blockquote class="evidence">{{ f.evidence_quote }}</blockquote>
+    {% else %}
+      <p class="note">No quote on this one — that is why it is unclear rather than decided.</p>
+    {% endif %}
+
+    <dl class="facts tight">
+      <dt>Why</dt>
+      <dd>{{ f.reasoning }}</dd>
+
+      <dt>Aimed at</dt>
+      <dd>
+        {% for t in f.target_territories %}<span class="tag">{{ t }}</span>
+        {% else %}<span class="hint">could not tell</span>{% endfor %}
+      </dd>
+
+      <dt>Found by searching</dt>
+      <dd><span class="tag">{{ f.discovered_locale }}</span>
+          <span class="hint">{{ f.discovered_via | ev }}</span></dd>
+
+      {% if f.matched_consent_id and consents.get(f.matched_consent_id) %}
+        {% set c = consents[f.matched_consent_id] %}
+        <dt>Covered by</dt>
+        <dd>{{ c.licensee }} &mdash; {{ c.territories | join(", ") }},
+            {{ c.valid_from.date() if c.valid_from }} to {{ c.valid_to.date() if c.valid_to }}</dd>
+      {% endif %}
+
+      {% if f.confidence is not none %}
+        <dt>Confidence</dt>
+        <dd>{{ "%.0f%%" | format(f.confidence * 100) }}</dd>
+      {% endif %}
+    </dl>
+  </article>
+{% else %}
+  <p class="empty">Nothing found yet. Run a sweep.</p>
+{% endfor %}
+{% endblock %}

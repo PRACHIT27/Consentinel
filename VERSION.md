@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.7.0`**
+**Doc set version: `v1.8.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,39 @@ commit.
 # Log
 
 Newest first.
+
+## v1.8.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `web/`
+**Type:** MINOR
+
+**WU-21 and WU-22 are done. There is something to look at. 62 tests passing.**
+
+Three server-rendered pages reading live data out of Firestore:
+
+- **Registry** - who we protect and what each studio may do, with the actual contract sentence and
+  its page number shown underneath.
+- **Found on the web** - the sweep results, ordered so breaches come first. Alphabetical order put
+  "unclear" at the top, which buried the thing the page exists to show.
+- **Our own footage** - the inward check, with a banner counting what cannot ship.
+
+Three decisions worth knowing:
+
+- **Raw values never reach the screen.** "unauthorized" is shown as "Not allowed", "unverified" as
+  "Unchecked". A judge watching a video should not have to translate our database into English.
+  There is a test that fails if a raw value leaks through.
+- **Everything borrowed from someone else's website is escaped.** We display text from pages we do
+  not control; rendering it as markup would let a stranger's page run script inside our app. A test
+  feeds a finding containing a script tag and an image-onerror payload and checks neither can form.
+- **The health check does not touch the database.** If it did, a slow database would look like a
+  dead app and Cloud Run would restart the container for nothing.
+
+The web tests use a fake in-memory store, so they need no network and no Google Cloud login - they
+run in under a second.
+
+**Action required:**
+- Everyone: `pip install -r requirements.txt` again. The web dependencies are now needed
+- Run it locally with `python -m uvicorn web.app:app --port 8080`
+- Prachit: next is WU-25, getting this onto Cloud Run so there is a URL to submit
 
 ## v1.7.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `tools/make_contract_pdf.py`, `fixtures/docs/`, `requirements-dev.txt`
