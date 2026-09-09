@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -252,7 +252,21 @@ class CacheEntry:
     fetched_at: datetime
 
     def age_seconds(self, now: Optional[datetime] = None) -> float:
-        return ((now or datetime.utcnow()) - self.fetched_at).total_seconds()
+        """How old this entry is, in seconds.
+
+        Both sides are made timezone-aware first. `datetime.utcnow()` returns a
+        naive value while Firestore hands back aware timestamps, so subtracting
+        them raised `TypeError: can't subtract offset-naive and offset-aware
+        datetimes` — which surfaced as the harness failing every cache hit
+        rather than as anything resembling a clock problem.
+        """
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        fetched = self.fetched_at
+        if fetched.tzinfo is None:
+            fetched = fetched.replace(tzinfo=timezone.utc)
+        return (now - fetched).total_seconds()
 
 
 class Cache(ABC):
