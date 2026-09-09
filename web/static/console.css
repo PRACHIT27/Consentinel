@@ -658,12 +658,23 @@ a.btn{ display:inline-block; text-decoration:none; }
 /* The hero, without the photograph. The mockup layered a gradient over an
    Unsplash image; this keeps the gradient and the gold sweep so the shape and
    motion survive, and nothing loads from another origin. */
+/* The hero carries a real photograph again — a stage under coloured light,
+   which is the room this product is about. The gradient underneath is a
+   fallback, so a slow or blocked image leaves a dark panel rather than a white
+   flash, and `::before` stays because the headline sits on top of the picture
+   and has to stay readable over whatever is in it. */
 .hero{
   background:
     radial-gradient(120% 140% at 12% 0%, #17202B 0%, transparent 55%),
     linear-gradient(180deg, #0E141B 0%, #0B1015 55%, var(--ink) 100%);
 }
-.hero::before{ background:none; }
+.hero img{ opacity:0.5; }
+.hero::before{
+  background:linear-gradient(180deg,
+    rgba(10,13,16,0.25) 0%,
+    rgba(10,13,16,0.62) 50%,
+    var(--ink) 100%);
+}
 
 .section-label{
   font-size:0.72rem;
