@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.6.0`**
+**Doc set version: `v2.7.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,42 @@ commit.
 
 Newest first.
 
+## v2.7.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/audit.py` and the web app
+**Type:** MINOR
+
+**WU-18 is done. Epic 7 closed. 90 tests.** The trail is real now, not a no-op port.
+
+`consentinel/audit.py` gives the harness a working `AuditPort`, so every agent run leaves a
+permanent row without the agent author doing anything - they never call it, which is the point.
+Verified against real Firestore: two rows written, read back in order, with the cache age intact.
+
+Three properties it exists to hold:
+
+- **Append-only.** There is no update or delete, on the store or on the audit object. A test asserts
+  those attributes are *absent*, so adding one later fails loudly.
+- **It says how old its inputs were.** Every tool call carries `from_cache` and `cache_age_s`.
+  Claiming we checked the web at 3pm when the answer came from a 9am cache is the quiet dishonesty
+  that makes a trail worthless.
+- **A gap means we did not run.** Rows are written on failure too. A sweep that found nothing has a
+  row saying so; a sweep that never happened has none. Those must never look the same.
+
+`audit.tool(...)` is a context manager that times a call and records it **even when it raises** - a
+tool that failed is part of why a decision came out the way it did.
+
+**Bug found while testing:** the first id scheme was a millisecond timestamp plus a random tail.
+Three rows written in the same millisecond then sorted by their random part, which is not the order
+they happened in. Ids now carry microseconds, a process-local counter, and a random tail: the
+timestamp orders across processes, the counter within one, the tail prevents collisions. Verified
+with 500 writes in a tight loop.
+
+The upload screen now passes the audit port into `extract_consent`, so reading a contract on the
+live site leaves a trail.
+
+**Action required:**
+- Vedant: pass `HarnessDeps(audit=FirestoreAudit(store), ...)` when you construct a harness, and use
+  `audit.tool(...)` around `parallel_search` and `fetch_page`. That is what makes the call log in
+  WU-37 a real artefact rather than a screenshot of stdout
 ## v2.6.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `DESIGN.md`, plus `infra/iam/`
 **Type:** MINOR

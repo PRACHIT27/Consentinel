@@ -32,6 +32,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_consent
+from consentinel.agents.consent_ingest import PROMPT_VERSION
+from consentinel.audit import FirestoreAudit
+from consentinel.harness.ports import HarnessDeps
 from consentinel.store.base import Performer, Store
 from consentinel.store.firestore_store import FirestoreStore
 from web import security
@@ -64,8 +67,21 @@ def get_store() -> Store:
 
 def set_store(store: Store) -> None:
     """Used by tests to swap in a fake so they do not need the network."""
-    global _store
+    global _store, _audit
     _store = store
+    _audit = None
+
+
+_audit: Optional[FirestoreAudit] = None
+
+
+def get_audit() -> FirestoreAudit:
+    """The trail. Every model call the app makes leaves a row, so a verdict can
+    always be questioned afterwards."""
+    global _audit
+    if _audit is None:
+        _audit = FirestoreAudit(get_store(), subject_type="consent")
+    return _audit
 
 
 # --------------------------------------------------------------- presentation
@@ -229,7 +245,10 @@ async def consent_extract(
         tmp_path = Path(tmp.name)
 
     try:
-        result = extract_consent(tmp_path)
+        result = extract_consent(
+            tmp_path,
+            deps=HarnessDeps(audit=get_audit(), prompt_version=PROMPT_VERSION),
+        )
     finally:
         tmp_path.unlink(missing_ok=True)
 
