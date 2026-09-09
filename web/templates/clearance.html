@@ -12,6 +12,100 @@
     </div>
   </div>
 
+  {% if just_checked %}
+    {% set jstamp, jlabel = just_checked.clearance_state | clearance_stamp %}
+    <div class="human-flag" style="margin-top:22px; {% if jlabel == 'blocked' %}background:var(--orange-soft);{% endif %}">
+      <strong>{{ just_checked.filename }} &mdash; {{ jlabel }}.</strong>
+      {{ just_checked.reasoning | replace('_', ' ') }} Open the row for the clause it rests on.
+    </div>
+  {% endif %}
+
+  {% if can_act %}
+    <form class="panel" method="post" action="/clearance/check" enctype="multipart/form-data"
+          style="margin-top:22px; max-width:none;">
+      <input type="hidden" name="k" value="{{ k }}">
+      <h3>Check a clip</h3>
+      <p class="desc">The delivery note tells us who is in the shot, who is shipping it and where it
+         is being released &mdash; the studio knows those, so we do not ask a model to guess them.
+         Gemini answers the one thing the note cannot: whether the file really contains what the note
+         says. We keep the file's fingerprint, not the file.</p>
+
+      <label class="dropzone" for="clip" style="display:block; cursor:pointer;">
+        <strong id="clipName">Choose a clip</strong>
+        <span class="dz-sub">Audio, video or an image, up to 18 MB</span>
+        <input type="file" id="clip" name="clip" required
+               accept="audio/*,video/*,image/*"
+               data-filename-into="clipName"
+               style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+      </label>
+
+      <div class="two-up" style="margin-top:16px;">
+        <label class="field">
+          <span class="label">Who is in it</span>
+          <select name="performer_id" required>
+            {% for pid, p in performers.items() %}
+              <option value="{{ pid }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Who is shipping it</span>
+          <select name="licensee" required>
+            {% for name in licensees %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+          </select>
+          <span class="hint">Must be the studio that holds the grant, or it is not covered.</span>
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">What was made</span>
+          <select name="modality" required>
+            <option value="voice">a synthetic voice</option>
+            <option value="face">a synthetic face</option>
+            <option value="performance">a whole synthetic performance</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Where it is released</span>
+          <input type="text" name="territories" placeholder="US, CA" value="US">
+          <span class="hint">Two-letter codes. A grant is scoped to countries.</span>
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">Made by</span>
+          <input type="text" name="vendor" placeholder="Northlight Post">
+        </label>
+        <label class="field">
+          <span class="label">Invoice</span>
+          <input type="text" name="invoice_ref" placeholder="NL-2291">
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">Shot code</span>
+          <input type="text" name="shot_code" placeholder="NF_1042_ADR">
+        </label>
+        <label class="field">
+          <span class="label">Vendor declared AI use</span>
+          <select name="synthetic">
+            <option value="yes">yes, made with AI</option>
+            <option value="unknown" selected>nobody said</option>
+            <option value="no">no, filmed</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">Check against the registry</button>
+        <span class="hint" style="display:inline;">Nothing defaults to fine to ship.</span>
+      </div>
+    </form>
+  {% endif %}
+
   {% if blockers %}
     <div class="human-flag" style="background:var(--orange-soft); margin-top:22px;">
       <strong>{{ blockers | length }} clip{{ 's' if blockers | length != 1 }} cannot ship.</strong>

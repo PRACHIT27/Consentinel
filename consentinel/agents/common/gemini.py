@@ -82,3 +82,41 @@ def generate_json(
         ),
     )
     return json.loads(response.text)
+
+
+def generate_json_about_media(
+    instruction: str,
+    data: bytes,
+    mime_type: str,
+    schema: dict[str, Any],
+    *,
+    temperature: float = 0.0,
+    model: Optional[str] = None,
+) -> dict[str, Any]:
+    """The same deal as `generate_json`, for a file instead of text.
+
+    Used by the clearance check: a production hands us a clip and we ask Gemini
+    what is in it. The bytes go inline, which Vertex allows up to about 20 MB —
+    beyond that the file has to go through the Files API first, and the caller
+    should reject it rather than silently truncate.
+
+    There is no `wrap_untrusted` here, and the reason is worth stating: fencing
+    works because text can be delimited. A media part cannot be — the model
+    receives it as audio or pixels, not as characters inside a marker. So the
+    defence for this path is not the fence, it is the same one triage relies on:
+    the step holds no tools, gets no free-text channel, and its answer is
+    corroboration that can only ever *withhold* clearance, never grant it.
+    """
+    from google.genai import types
+
+    response = _client().models.generate_content(
+        model=model or DEFAULT_MODEL,
+        contents=[types.Part.from_bytes(data=data, mime_type=mime_type)],
+        config=types.GenerateContentConfig(
+            system_instruction=instruction,
+            temperature=temperature,
+            response_mime_type="application/json",
+            response_schema=schema,
+        ),
+    )
+    return json.loads(response.text)

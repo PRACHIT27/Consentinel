@@ -51,3 +51,15 @@ def check(supplied: Optional[str]) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This action needs the team key. Reads are open; actions are not.",
         )
+
+def allows(supplied: Optional[str]) -> bool:
+    """The same question as `check`, without the exception.
+
+    The screens need it to decide whether to draw a button. Drawing one that
+    403s is worse than drawing none: on a laptop, where no token is configured,
+    the upload forms are supposed to be there.
+    """
+    expected = required_token()
+    if expected is None:
+        return True
+    return bool(supplied) and hmac.compare_digest(supplied, expected)

@@ -9,8 +9,8 @@
     <p>Every permission slip your clients have signed, in one place &mdash; watched outward for people
        using their likeness without one, and checked inward against anything your studio partners
        want to ship.</p>
-    {% if k %}
-      <a class="btn" href="/consents/new?k={{ k }}">+ Add permission slip</a>
+    {% if can_act %}
+      <a class="btn" href="/consents/new{{ q }}">+ Add permission slip</a>
     {% else %}
       <a class="btn ghost" href="/registry">Browse the registry</a>
     {% endif %}

@@ -17,7 +17,7 @@
       <p>The spine of the system. Add a contract and Consentinel reads it, fills in the fields, and
          quotes the exact sentence behind each one.</p>
     </div>
-    {% if k %}<a class="btn" href="/consents/new?k={{ k }}">+ Add permission slip</a>{% endif %}
+    {% if can_act %}<a class="btn" href="/consents/new{{ q }}">+ Add permission slip</a>{% endif %}
   </div>
 
   <div class="toolbar">

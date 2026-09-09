@@ -69,6 +69,7 @@ class FakeStore:
         self.saved: list[Consent] = []
 
     def list_performers(self): return list(self.performers)
+    def upsert_asset(self, a): self.assets = [x for x in self.assets if x.id != a.id] + [a]; return a
     def list_consents(self, performer_id): return [c for c in self.consents if c.performer_id == performer_id]
     def list_findings(self, **kw): return list(self.findings)
     def list_assets(self, production_id, state=None): return list(self.assets)
@@ -206,6 +207,47 @@ def test_saving_a_slip_writes_it_and_reuses_the_performer(client):
     assert saved.performer_id == "p1", "should reuse the existing performer, not duplicate them"
     assert saved.territories == ["US", "CA"]
     assert saved.permitted_uses == [PermittedUse.VOICE_SYNTH]
+
+
+def test_checking_a_clip_writes_the_answer_and_returns_to_the_screen(client, monkeypatch):
+    """The inward direction, end to end through the app: a clip plus a delivery
+    note goes in, a row with a verdict comes out."""
+    from consentinel.agents.clearance import ClearanceOutcome
+    from consentinel.store.base import ClearanceState
+
+    monkeypatch.setattr(
+        webapp, "check_asset",
+        lambda **kw: ClearanceOutcome(
+            state=ClearanceState.BLOCKED, reasoning="nothing permits this",
+            content_hash="a" * 64, declared_modality="face"),
+    )
+
+    r = client.post(
+        "/clearance/check",
+        data={"performer_id": "p1", "licensee": "Halcyon Pictures", "modality": "face",
+              "territories": "US", "vendor": "Cyan Alley", "synthetic": "yes"},
+        files={"clip": ("plate.png", b"\x89PNG", "image/png")},
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 303
+    assert "/clearance" in r.headers["location"]
+    written = [a for a in client.store.assets if a.filename == "plate.png"]
+    assert len(written) == 1, "one row per delivery, keyed on the bytes and the shot"
+    assert written[0].clearance_state == ClearanceState.BLOCKED
+    assert written[0].vendor == "Cyan Alley"
+
+
+def test_a_clip_check_needs_the_key(monkeypatch):
+    """It costs a Gemini call, so it is gated like every other action."""
+    monkeypatch.setenv(security.ENV_VAR, "s3cret")
+    webapp.set_store(FakeStore())
+    c = TestClient(webapp.app)
+    r = c.post("/clearance/check",
+               data={"performer_id": "p1", "licensee": "X", "modality": "voice"},
+               files={"clip": ("a.wav", b"\x00", "audio/wav")})
+    assert r.status_code == 403
+    webapp.set_store(None)
 
 
 def test_an_unreadable_contract_says_so_rather_than_saving_nothing(client, monkeypatch):

@@ -735,7 +735,8 @@ a.btn{ display:inline-block; text-decoration:none; }
 }
 .field input[type=text],
 .field input[type=date],
-.field input[type=file]{
+.field input[type=file],
+.field select{
   width:100%;
   border:1px solid var(--line);
   background:var(--ink);
@@ -745,7 +746,8 @@ a.btn{ display:inline-block; text-decoration:none; }
   font-size:0.9rem;
   font-family:inherit;
 }
-.field input:focus{ outline:none; border-color:var(--gold); }
+.field input:focus, .field select:focus{ outline:none; border-color:var(--gold); }
+.field select{ appearance:none; cursor:pointer; }
 .hint{ display:block; font-size:0.78rem; color:#5B6270; line-height:1.55; }
 .field .hint{ margin-top:6px; }
 
