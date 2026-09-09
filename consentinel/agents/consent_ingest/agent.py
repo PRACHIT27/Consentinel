@@ -41,6 +41,7 @@ from consentinel.harness.policy import FailState, HarnessPolicy
 from consentinel.harness.ports import HarnessDeps
 from consentinel.harness.result import HarnessResult
 from consentinel.harness.runner import Harness
+from consentinel.model_armor import INGEST_IN
 from consentinel.store.base import Consent, PermittedUse
 
 POLICY = HarnessPolicy(
@@ -50,7 +51,15 @@ POLICY = HarnessPolicy(
     output_schema=dict,
     temperature=0.0,
     cache="content",                     # a PDF never changes, so its hash is the key
-    armor_prompt="consentinel-ingest",   # user-supplied: screened for personal data
+    # User-supplied text, so it is screened for personal data on the way in.
+    #
+    # The constant, not a literal. This read `"consentinel-ingest"`, and the
+    # template `infra/model_armor/01_templates.sh` creates is
+    # `consentinel-ingest-in` — so the moment the app began passing a real
+    # `ModelArmor`, every upload would have resolved `armor_unavailable`
+    # against a template that does not exist, and the only sign would have been
+    # one log line. `model_armor` owns these names; nobody should retype them.
+    armor_prompt=INGEST_IN,
     timeout_s=90.0,
 )
 
