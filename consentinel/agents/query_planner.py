@@ -35,7 +35,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Optional, Sequence
 
-from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
+from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from consentinel.harness import (
     FailState,
@@ -614,9 +615,11 @@ def parse_plan(raw: str, performer_id: str, model: Optional[str]) -> SearchPlan:
     try:
         parsed = PlanOut.model_validate_json(text)
     except PydanticValidationError as exc:
-        raise ValidationError(f"{AGENT_NAME}: output did not match the schema: {exc}")
+        raise ValidationError(
+            f"{AGENT_NAME}: output did not match the schema: {exc}") from exc
     except ValueError as exc:
-        raise ValidationError(f"{AGENT_NAME}: output was not JSON: {exc}")
+        raise ValidationError(
+            f"{AGENT_NAME}: output was not JSON: {exc}") from exc
 
     batches = tuple(
         SearchBatch(
@@ -654,7 +657,9 @@ def build_agent(model: str = DEFAULT_MODEL, *,
     `output_schema` is what removes the free-form channel: with it set, ADK
     refuses tools and transfer, so this agent can only fill in `PlanOut`.
     """
-    from google.adk.agents import LlmAgent  # noqa: PLC0415 - lazy: importing ADK is slow
+    from google.adk.agents import (
+        LlmAgent,  # noqa: PLC0415 - lazy: importing ADK is slow
+    )
     from google.genai import types  # noqa: PLC0415
 
     return LlmAgent(

@@ -262,7 +262,7 @@ twice daily. **Read it before you start, update it before you finish.**
 - [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
 - [x] `parallel_search` via official `parallel-web` SDK — *Vedant* (WU-05, 23 tests)
 - [x] `QueryPlanner` — *Vedant* (WU-06, 31 tests; 5 locales, 5 languages, deterministic fallback)
-- [ ] `TextSweep` (WU-07) — *Vedant*
+- [x] `TextSweep` — *Vedant* (WU-07, 24 tests; dedupe on `url_hash`, 25-candidate cap)
 - [ ] `Triage` + `Reconciler` (deterministic rules, unit-tested) — *Vedant*
 - [ ] Findings UI + decision-trail view — *Prachit*
 - [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*

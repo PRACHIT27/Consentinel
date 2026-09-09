@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.5.2`**
+**Doc set version: `v1.5.3`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,58 @@ commit.
 # Log
 
 Newest first.
+
+## v1.5.3 - 2026-09-09 - Vedant (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
+**Type:** PATCH — but read the DESIGN.md deviation below and push back if you disagree
+
+**WU-07 TextSweep is done. Epic 2's P0 path is complete: 114 tests passing (24 new).**
+
+`consentinel/agents/text_sweep.py` runs a plan through `parallel_search`, deduplicates and upserts
+findings. Same sweep twice → zero duplicate rows (FR-2.5).
+
+**Deviation from DESIGN.md Part II 2.1, deliberate and not silently:** the table lists TextSweep as
+an `LlmAgent` holding `parallel_search`. I built it **deterministic, with no model call.**
+QueryPlanner already did the thinking; what remains is "call these eight batches, normalise, dedupe,
+upsert", and a model choosing which of its own planned queries to run adds non-determinism to a live
+demo for no coverage gain — which is the reason CLAUDE.md prefers deterministic composition. I did
+not edit the frozen-ish design doc for this. If we want the table to be true, say so and it becomes
+an `LlmAgent` whose tool loop runs the same batches; otherwise DESIGN.md's row should change and
+that is a MAJOR bump someone else should approve.
+
+What a reviewer should know:
+
+- **`url_hash` = sha256 of the normalised URL**, and `normalise_url` is the whole of deduplication:
+  lowercase scheme and host, drop the default port, drop the fragment, strip a trailing slash, sort
+  query params and remove tracking ones (`utm_*`, `gclid`, `fbclid`, …). Deliberately **not**
+  merged: `www.` with the bare host, and `http` with `https` — they are usually the same page and
+  occasionally not, and a wrong merge silently hides a finding, which is worse than one duplicate a
+  human can dismiss. Both are importable (`from consentinel.agents.text_sweep import url_hash`) so
+  the UI and WU-08 hash identically.
+- **`Finding.id == url_hash`.** Deterministic on purpose: the upsert stays idempotent whichever
+  field a Store implementation keys on. A uuid here would create a second row per sweep.
+- **`first_seen` / `last_checked` are left `None`** — the store owns them, and WU-01 already
+  preserves `first_seen` across re-sweeps.
+- **`discovered_locale` is set; `target_territories` and `modality` are not.** We searched a
+  modality, we have not established the page depicts one. Triage fills those in by reading the page;
+  asserting them here would put an unverified claim in the registry.
+- **Excerpts are never persisted.** They ride in `SweepReport.candidates` for triage to prioritise
+  with, because they are LLM-selected and truncated and evidence is our own snapshot (WU-15).
+- **`SweepReport.degraded` is broad on purpose**: a degraded plan, one dead batch, or one failed
+  write all set it. A dead batch does not kill the sweep — the other seven still land — and an empty
+  *successful* sweep is explicitly not degraded, which is the distinction hard rule 10 exists for.
+- Concurrency is 4 threads; results are collected in **plan order** regardless of completion order,
+  so the 25-candidate cap is reproducible rather than a race. The cap sits in two places: the plan
+  asks for `25 // batches` per batch, and the sweep drops any overflow if a provider ignores that.
+- One audit row per sweep (`event: "sweep"`) on top of WU-05's row per call, and one summary log
+  line.
+
+**Action required:**
+- Prachit: `url_hash` / `normalise_url` are the canonical implementation — import them rather than
+  re-deriving in `web/`, or the UI and the registry will disagree about identity
+- Whoever takes WU-08 (`fetch_page`): candidates arrive as `SweepReport.candidates`, each with
+  `url`, `url_hash`, `locale` and excerpts
+- Someone other than me should rule on the DESIGN.md deviation above
 
 ## v1.5.2 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`

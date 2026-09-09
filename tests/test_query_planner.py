@@ -38,7 +38,7 @@ from consentinel.harness import (
     MemoryMetrics,
     ValidationError,
 )
-from consentinel.store.base import Consent, Locale, PermittedUse, Performer
+from consentinel.store.base import Consent, Locale, Performer, PermittedUse
 
 MIRA = Performer(id="perf_mira", name="Mira Vance",
                  aliases=["M. Vance", "Mira V."])

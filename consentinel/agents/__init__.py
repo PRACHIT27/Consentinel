@@ -10,3 +10,10 @@ from consentinel.agents.query_planner import (  # noqa: F401
     iter_search_calls,
     validate_plan,
 )
+from consentinel.agents.text_sweep import (  # noqa: F401
+    Candidate,
+    SweepReport,
+    TextSweep,
+    normalise_url,
+    url_hash,
+)
