@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.1.0`**
+**Doc set version: `v3.1.1`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,37 @@ commit.
 
 Newest first.
 
+## v3.1.1 - 2026-09-09 - Prachit (with Claude)
+**Files:** `web/app.py`
+**Type:** PATCH
+
+**The web app was never emitting a span or a metric, and that explains the missing traces.**
+
+The WU-30 wiring looked applied but was not: the edit that adds `tracer` and `metrics` to
+`HarnessDeps` silently failed to match, and the script that made it printed success unconditionally.
+So the app ran with the no-op tracer and metrics sink the whole time.
+
+Which resolves the open question from v3.1.0. The traces were not lagging and it was not a missing
+IAM role - **nothing was being sent.** A separate standalone export in that session did flush spans
+directly, so whether *that* one landed is still unknown, but the app path was definitively silent.
+
+Now verified on a real contract read:
+
+```
+span     agent.consent_ingest
+metrics  agent.runs{agent=consent_ingest,outcome=ok} = 1
+         agent.duration_seconds{agent=consent_ingest} mean 9.78
+log      read a contract  pages=6 citations=8 dropped=0 from_cache=false
+```
+
+The log line carries page count, citation count and timing, and no page content - which is the rule
+holding under a real call rather than only under test.
+
+Two process notes worth keeping:
+- A script that reports success without checking whether its replacement matched is worse than one
+  that fails, because it produces a false record. Verify the file, not the script's own output.
+- This was edited on `main` first, where `consentinel/obs/` does not exist because WU-30 is still
+  unmerged, so the import failed. Check the branch before editing.
 ## v3.1.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `consentinel/obs/`
 **Type:** MINOR
