@@ -1,63 +1,208 @@
 {% extends "base.html" %}
-{% block title %}Our own footage — Consentinel{% endblock %}
+{% block title %}Clearance Check — Consentinel{% endblock %}
 
 {% block content %}
-<h1>Our own footage</h1>
-<p class="lead">Before a film ships, someone has to sign that we hold the rights to everything in it.
-   Same registry, same rules &mdash; pointed inward this time.</p>
-
-{% if blockers %}
-  <div class="banner bad">
-    <strong>{{ blockers | length }} clip{{ "s" if blockers | length != 1 }} cannot ship.</strong>
-    Each one is named below with the clause it breaks.
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Clearance check · inward</p>
+      <h1>Can we prove coverage for this?</h1>
+      <p>The same rules that catch outsiders answer for your own production: fine to ship, blocked,
+         or unchecked. Nothing defaults to fine.</p>
+    </div>
   </div>
-{% endif %}
-{% if unchecked %}
-  <div class="banner muted">
-    <strong>{{ unchecked | length }} clip{{ "s" if unchecked | length != 1 }} unchecked.</strong>
-    No paperwork on file. Unchecked is not the same as fine &mdash; a person has to look.
-  </div>
-{% endif %}
 
-{% for a in assets %}
-  {% set style, label = a.clearance_state | clearance_style %}
-  <article class="card finding {{ style }}">
-    <div class="finding-head">
-      <span class="pill {{ style }}">{{ label }}</span>
-      {% if a.shot_code %}<span class="pill muted">{{ a.shot_code }}</span>{% endif %}
-      {% if a.detected_modality %}<span class="pill muted">{{ a.detected_modality | ev }}</span>{% endif %}
-      {% if a.synthetic == "yes" %}<span class="pill warn">made with AI</span>{% endif %}
-      {% if a.synthetic == "unknown" %}<span class="pill muted">nobody said</span>{% endif %}
+  {% if just_checked %}
+    {% set jstamp, jlabel = just_checked.clearance_state | clearance_stamp %}
+    <div class="human-flag" style="margin-top:22px; {% if jlabel == 'blocked' %}background:var(--orange-soft);{% endif %}">
+      <strong>{{ just_checked.filename }} &mdash; {{ jlabel }}.</strong>
+      {{ just_checked.reasoning | replace('_', ' ') }} Open the row for the clause it rests on.
+    </div>
+  {% endif %}
+
+  {% if can_act %}
+    <form class="panel" method="post" action="/clearance/check" enctype="multipart/form-data"
+          style="margin-top:22px; max-width:none;">
+      <input type="hidden" name="k" value="{{ k }}">
+      <h3>Check a clip</h3>
+      <p class="desc">The delivery note tells us who is in the shot, who is shipping it and where it
+         is being released &mdash; the studio knows those, so we do not ask a model to guess them.
+         Gemini answers the one thing the note cannot: whether the file really contains what the note
+         says. We keep the file's fingerprint, not the file.</p>
+
+      <label class="dropzone" for="clip" style="display:block; cursor:pointer;">
+        <strong id="clipName">Choose a clip</strong>
+        <span class="dz-sub">Audio, video or an image, up to 18 MB</span>
+        <input type="file" id="clip" name="clip" required
+               accept="audio/*,video/*,image/*"
+               data-filename-into="clipName"
+               style="position:absolute; inset:0; opacity:0; cursor:pointer;">
+      </label>
+
+      <div class="two-up" style="margin-top:16px;">
+        <label class="field">
+          <span class="label">Who is in it</span>
+          <select name="performer_id" required>
+            {% for pid, p in performers.items() %}
+              <option value="{{ pid }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Who is shipping it</span>
+          <select name="licensee" required>
+            {% for name in licensees %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+          </select>
+          <span class="hint">Must be the studio that holds the grant, or it is not covered.</span>
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">What was made</span>
+          <select name="modality" required>
+            <option value="voice">a synthetic voice</option>
+            <option value="face">a synthetic face</option>
+            <option value="performance">a whole synthetic performance</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">Where it is released</span>
+          <input type="text" name="territories" placeholder="US, CA" value="US">
+          <span class="hint">Two-letter codes. A grant is scoped to countries.</span>
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">Made by</span>
+          <input type="text" name="vendor" placeholder="Northlight Post">
+        </label>
+        <label class="field">
+          <span class="label">Invoice</span>
+          <input type="text" name="invoice_ref" placeholder="NL-2291">
+        </label>
+      </div>
+
+      <div class="two-up">
+        <label class="field">
+          <span class="label">Shot code</span>
+          <input type="text" name="shot_code" placeholder="NF_1042_ADR">
+        </label>
+        <label class="field">
+          <span class="label">Vendor declared AI use</span>
+          <select name="synthetic">
+            <option value="yes">yes, made with AI</option>
+            <option value="unknown" selected>nobody said</option>
+            <option value="no">no, filmed</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">Check against the registry</button>
+        <span class="hint" style="display:inline;">Nothing defaults to fine to ship.</span>
+      </div>
+    </form>
+  {% endif %}
+
+  {% if blockers %}
+    <div class="human-flag" style="background:var(--orange-soft); margin-top:22px;">
+      <strong>{{ blockers | length }} clip{{ 's' if blockers | length != 1 }} cannot ship.</strong>
+      Each one is named below with the clause it breaks.
+    </div>
+  {% endif %}
+  {% if unchecked %}
+    <div class="human-flag" style="margin-top:10px;">
+      <strong>{{ unchecked | length }} unchecked.</strong> No paperwork on file. Unchecked is not the
+      same as fine &mdash; a person has to look.
+    </div>
+  {% endif %}
+
+  <h4 class="section-label" style="margin-top:34px;">Recently checked
+    <span class="mono" style="text-transform:none; letter-spacing:0; opacity:0.7;">{{ production }}</span>
+  </h4>
+  <div class="register">
+    <div class="reg-row head">
+      <div>Asset</div><div>Performer</div><div>Made by</div><div>Status</div><div></div>
     </div>
 
-    <p class="url">{{ a.filename }}</p>
+    {% for a in assets %}
+      {% set stamp, label = a.clearance_state | clearance_stamp %}
+      {% set performer = performers.get(a.performer_id) %}
+      <div class="reg-row"
+           data-drawer-title="{{ a.filename }}"
+           data-drawer-sub="{{ a.shot_code or a.id }}">
+        <div class="primary">{{ a.filename }}<span class="sub">{{ a.shot_code or 'no shot code' }}
+          {%- if a.synthetic == 'yes' %} · made with AI{% elif a.synthetic == 'unknown' %} · nobody said{% endif -%}
+        </span></div>
+        <div>{{ performer.name if performer else '—' }}</div>
+        <div>{{ a.vendor or 'not recorded' }}<span class="sub">
+          {%- if a.invoice_ref %}invoice {{ a.invoice_ref }}{% else %}no invoice{% endif -%}
+        </span></div>
+        <div><span class="stamp {{ stamp }}">{{ label }}</span></div>
+        <div></div>
 
-    <dl class="facts tight">
-      <dt>Why</dt>
-      <dd>{{ a.reasoning }}</dd>
+        <div data-drawer-body hidden>
+          <div class="drawer-section">
+            <h4>Why this answer</h4>
+            <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+              {{ a.reasoning | replace('_', ' ') }}</p>
+          </div>
 
-      <dt>Made by</dt>
-      <dd>{{ a.vendor or "not recorded" }}
-        {% if a.invoice_ref %}<span class="hint">invoice {{ a.invoice_ref }}</span>
-        {% else %}<span class="hint">no invoice on file</span>{% endif %}
-      </dd>
+          <div class="drawer-section">
+            <h4>Matched grant</h4>
+            <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+              {% if a.matched_consent_id and consents.get(a.matched_consent_id) %}
+                {% set c = consents[a.matched_consent_id] %}
+                {{ c.licensee }} &mdash;
+                {{ c.permitted_uses | map('ev') | map('replace', '_', ' ') | join(', ') }}
+                in {{ c.territories | join(', ') }}{% if c.valid_to %}, through
+                {{ c.valid_to.strftime('%b %Y') }}{% endif %}.
+              {% elif a.clearance_state | ev == 'blocked' %}
+                <span style="color:var(--orange);">Nothing in the registry permits this.</span>
+                Shipping it would use a likeness or voice the contract withholds.
+              {% else %}
+                No grant has been matched to this file yet, so it stays unchecked rather than being
+                assumed fine.
+              {% endif %}
+            </p>
+          </div>
 
-      {% if a.matched_consent_id and consents.get(a.matched_consent_id) %}
-        {% set c = consents[a.matched_consent_id] %}
-        <dt>Covered by</dt>
-        <dd>{{ c.licensee }} &mdash; {{ c.permitted_uses | map("ev") | join(", ") | replace("_", " ") }}
-            in {{ c.territories | join(", ") }}</dd>
-      {% elif a.clearance_state | ev == "blocked" %}
-        <dt>Covered by</dt>
-        <dd class="bad-text">nothing in the registry permits this</dd>
-      {% endif %}
-    </dl>
-  </article>
-{% else %}
-  <p class="empty">No footage submitted for this production.</p>
-{% endfor %}
+          {% if a.matched_consent_id and consents.get(a.matched_consent_id) and consents[a.matched_consent_id].clause_citations %}
+            <div class="drawer-section">
+              <h4>The clause it rests on</h4>
+              {% for cit in consents[a.matched_consent_id].clause_citations %}
+                <div class="clause-quote" style="margin-bottom:10px;">
+                  {{ cit.quote }}
+                  <span class="mono" style="display:block;margin-top:6px;font-size:0.72rem;opacity:0.8;">page {{ cit.page }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
 
-<p class="note">Production <code>{{ production }}</code>.
-   We are not detecting AI here &mdash; we are checking whether permission exists.
-   Anything without paperwork stays unchecked rather than being assumed fine.</p>
+          <div class="drawer-section">
+            <h4>Where the file came from</h4>
+            <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+              {{ a.vendor or 'Vendor not recorded' }}{% if a.invoice_ref %}, invoice
+              {{ a.invoice_ref }}{% endif %} &middot;
+              {% if a.synthetic == 'yes' %}the vendor declared it was made with AI
+              {% elif a.synthetic == 'no' %}the vendor declared it was filmed
+              {% else %}nobody declared how it was made{% endif %}.
+            </p>
+          </div>
+
+          <div class="human-flag">We are not detecting AI here. We are checking whether permission
+            exists, which is why a file with no paperwork stays unchecked.</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="empty-row">No footage submitted for this production.</div>
+    {% endfor %}
+  </div>
+
+  <p class="disclaimer">We are not detecting AI here &mdash; we are checking whether permission
+     exists. Anything without paperwork stays unchecked rather than being assumed fine, which is why
+     imperfect detection is still useful.</p>
+</div>
 {% endblock %}

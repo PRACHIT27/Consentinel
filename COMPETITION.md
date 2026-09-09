@@ -76,9 +76,21 @@ locale and result count, and that log is shown on screen in the demo video.
 
 > Projects must run on *"at least one of the following platforms: web, Android, or iOS"*
 
-No Google-exclusive hosting is mandated. **Cloud Run satisfies this.** We additionally deploy the
-agents to **Agent Engine** so that "powered by Gemini and Google Cloud Agent Builder" is true in
-code, not just in prose — see `COMPETITION.md §12`.
+No Google-exclusive hosting is mandated. **Cloud Run satisfies this**, and Cloud Run is where the
+app runs: https://consentinel-web-255860737849.us-central1.run.app
+
+**WU-24 is done, so Agent Engine can be claimed — in these words.** Four runtimes are deployed
+(`cn-ingest`, `cn-triage`, `cn-clearance`, `cn-enforcement`), each on its own service account, each
+hosting its pipeline's model step. Resource names are in `infra/agent_engine/deployed.json` and the
+answers they gave are in `infra/agent_engine/smoke_output.json`.
+
+What to say: *"the agents are built with ADK and deployed to Vertex AI Agent Engine; the app runs on
+Cloud Run, and the deterministic rule engine that decides every verdict runs in code next to the
+registry."* All of that is checkable.
+
+What **not** to say: that the whole pipeline executes on Agent Engine. It does not — the app calls
+the same agents in-process, because the reconciler reads the registry and has no model. Overstating
+this is the kind of claim a judge can puncture in one question.
 
 ## 6. Submission checklist
 
@@ -127,7 +139,7 @@ Five separate podiums, so track choice materially affects odds.
 |---|---|
 | Parallel only mentioned, not called | Official SDK imported and called in `tools/parallel_search.py`; call log on camera |
 | A non-Google model in the pipeline | Nothing but Gemini via accepted SDKs. Check `requirements.txt` before submitting |
-| Hosted URL broken on submission day | Deploy 8 Sep, not 9 Sep. Test from a cold browser with no local server running |
+| Hosted URL broken on submission day | **Live: https://consentinel-web-255860737849.us-central1.run.app** — Cloud Run, `us-central1`, public, no login. Re-tested from a cold browser after the 9 Sep UI deploy |
 | Missing or incomplete license | `LICENSE` (MIT) committed at the repo root |
 | Video over 3 minutes, or private | Script it, time it, set visibility to public — not unlisted-only if the form requires public |
 | Secret committed to the public repo | `.env` gitignored; Secret Manager in deploy; rotate on any exposure |

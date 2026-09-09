@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consentinel — Agency Console</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --ink: #0A0D10;
+  --panel: #12161B;
+  --panel-raised: #181D24;
+  --line: #262C34;
+  --line-soft: #1D222A;
+  --gold: #E8A23D;
+  --gold-soft: rgba(232,162,61,0.14);
+  --teal: #2FD1BE;
+  --teal-soft: rgba(47,209,190,0.14);
+  --orange: #F0603D;
+  --orange-soft: rgba(240,96,61,0.14);
+  --slate: #8B93A0;
+  --slate-soft: rgba(139,147,160,0.14);
+  --text: #F3F1EA;
+  --text-dim: #9AA1AC;
+  --radius-sm: 4px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  font-family:'Inter', sans-serif;
+  background:var(--ink);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{ font-family:'Space Grotesk', sans-serif; }
+.mono{ font-family:'IBM Plex Mono', monospace; }
+
+a{ color:inherit; }
+button{ font-family:inherit; cursor:pointer; }
+
+/* ---------- layout ---------- */
+.app{
+  display:grid;
+  grid-template-columns: 236px 1fr;
+  min-height:100vh;
+}
+
+.rail{
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  color:var(--text);
+  padding:28px 22px;
+  display:flex;
+  flex-direction:column;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:38px;
+}
+.brand svg{ flex:none; }
+.brand-name{
+  font-family:'Space Grotesk', sans-serif;
+  font-size:1.15rem;
+  font-weight:600;
+  letter-spacing:0.01em;
+}
+
+.nav{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.nav button{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  background:none;
+  border:none;
+  color:var(--text-dim);
+  font-size:0.92rem;
+  font-family:'Inter', sans-serif;
+  padding:10px 10px;
+  border-radius:var(--radius-sm);
+  text-align:left;
+  transition:background .15s ease, color .15s ease;
+}
+.nav button:hover{ background:rgba(243,241,234,0.05); color:var(--text); }
+.nav button.active{ background:var(--gold-soft); color:var(--gold); }
+.nav svg{ opacity:0.85; flex:none; }
+
+.rail-foot{
+  margin-top:auto;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+  font-size:0.78rem;
+  color:#5B6270;
+  line-height:1.5;
+}
+.rail-foot strong{ display:block; color:#C4C9D1; font-weight:500; font-size:0.85rem; }
+
+.main{
+  padding:0 0 80px;
+  max-width:1180px;
+}
+.main-inner{ padding:0 48px; }
+
+.view{ display:none; }
+.view.active{ display:block; animation:fadein .25s ease; }
+@keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+/* ---------- hero banner ---------- */
+.hero{
+  position:relative;
+  height:340px;
+  margin-bottom:0;
+  overflow:hidden;
+  display:flex;
+  align-items:flex-end;
+  background:#000;
+}
+.hero img{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  opacity:0.55;
+  filter:saturate(1.05) contrast(1.05);
+}
+.hero::before{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(10,13,16,0.15) 0%, rgba(10,13,16,0.55) 55%, var(--ink) 100%);
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  top:-40%; left:-10%;
+  width:70%; height:180%;
+  background:conic-gradient(from 200deg at 50% 50%, transparent 0deg, rgba(232,162,61,0.16) 18deg, transparent 40deg);
+  animation:sweep 3.2s ease-out 0.2s 1;
+  opacity:0;
+}
+@keyframes sweep{
+  0%{ opacity:0; transform:rotate(-20deg); }
+  15%{ opacity:1; }
+  100%{ opacity:0; transform:rotate(40deg); }
+}
+.hero-content{
+  position:relative;
+  z-index:2;
+  padding:0 48px 30px;
+  width:100%;
+}
+.eyebrow{
+  font-size:0.78rem;
+  color:var(--gold);
+  margin:0 0 10px;
+  font-family:'IBM Plex Mono', monospace;
+  letter-spacing:0.02em;
+}
+.hero h1{
+  font-size:2.3rem;
+  font-weight:600;
+  margin:0 0 10px;
+  line-height:1.1;
+  max-width:16ch;
+}
+.hero p{
+  margin:0 0 20px;
+  color:#D7D9DD;
+  max-width:52ch;
+  font-size:0.98rem;
+  line-height:1.55;
+}
+
+.view-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:24px;
+  margin-bottom:8px;
+  padding:36px 0 22px;
+  border-bottom:1px solid var(--line);
+}
+.view-head h1{ font-size:1.9rem; font-weight:600; margin:0 0 8px; line-height:1.15; }
+.view-head p{ margin:0; color:var(--text-dim); max-width:52ch; font-size:0.95rem; line-height:1.5; }
+
+/* buttons */
+.btn{
+  border:1px solid var(--gold);
+  background:var(--gold);
+  color:#171208;
+  padding:11px 20px;
+  border-radius:var(--radius-sm);
+  font-size:0.88rem;
+  font-weight:600;
+  white-space:nowrap;
+}
+.btn:hover{ background:#F0B458; border-color:#F0B458; }
+.btn.ghost{
+  background:transparent;
+  color:var(--text);
+  border:1px solid var(--line);
+}
+.btn.ghost:hover{ border-color:var(--gold); color:var(--gold); }
+.btn.small{ padding:7px 14px; font-size:0.8rem; }
+
+/* stat strip */
+.stats{
+  display:flex;
+  gap:0;
+  margin:26px 0 34px;
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  overflow:hidden;
+  background:var(--panel);
+}
+.stat{
+  flex:1;
+  padding:18px 22px;
+  border-right:1px solid var(--line);
+}
+.stat:last-child{ border-right:none; }
+.stat .num{
+  font-family:'Space Grotesk', sans-serif;
+  font-size:1.7rem;
+  font-weight:700;
+  display:block;
+  line-height:1;
+  margin-bottom:6px;
+  color:var(--text);
+}
+.stat .lbl{ font-size:0.82rem; color:var(--text-dim); }
+.stat.orange .num{ color:var(--orange); }
+.stat.teal .num{ color:var(--teal); }
+
+/* directions callout */
+.directions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:40px;
+}
+.dir-card{
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  background:var(--panel);
+  padding:22px 24px;
+  cursor:pointer;
+  transition:border-color .15s ease, transform .15s ease, background .15s ease;
+}
+.dir-card:hover{ transform:translateY(-1px); background:var(--panel-raised); }
+.dir-card.out:hover{ border-color:var(--orange); }
+.dir-card.in:hover{ border-color:var(--teal); }
+.dir-card h3{
+  margin:0 0 8px;
+  font-size:1.15rem;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.dir-card .tag{
+  font-size:0.68rem;
+  font-family:'IBM Plex Mono', monospace;
+  padding:2px 8px;
+  border-radius:10px;
+  font-weight:500;
+}
+.dir-card.out .tag{ background:var(--orange-soft); color:var(--orange); }
+.dir-card.in .tag{ background:var(--teal-soft); color:var(--teal); }
+.dir-card p{ margin:0; color:var(--text-dim); font-size:0.9rem; line-height:1.55; }
+
+/* register table */
+.register{ border-top:1px solid var(--line); margin-top:8px; }
+.reg-row{
+  display:grid;
+  grid-template-columns: 1.4fr 1.3fr 1.1fr 1fr 0.9fr;
+  gap:14px;
+  align-items:center;
+  padding:15px 4px;
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+  transition:background .12s ease;
+}
+.reg-row.head{
+  cursor:default;
+  font-size:0.75rem;
+  color:var(--text-dim);
+  padding-bottom:10px;
+}
+.reg-row:not(.head):hover{ background:var(--panel); }
+.reg-row .primary{ font-weight:500; color:var(--text); }
+.reg-row .sub{ display:block; font-size:0.8rem; color:var(--text-dim); margin-top:2px; }
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:0.78rem;
+  font-family:'IBM Plex Mono', monospace;
+  padding:4px 9px;
+  border-radius:3px;
+  width:fit-content;
+}
+.badge.active{ background:var(--teal-soft); color:var(--teal); }
+.badge.expiring{ background:var(--gold-soft); color:var(--gold); }
+.badge.expired{ background:var(--slate-soft); color:var(--slate); }
+.badge .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+.toolbar{
+  display:flex;
+  gap:12px;
+  margin:26px 0 4px;
+  align-items:center;
+}
+.search{
+  flex:1;
+  max-width:320px;
+  border:1px solid var(--line);
+  background:var(--panel);
+  border-radius:var(--radius-sm);
+  padding:10px 14px;
+  font-size:0.88rem;
+  font-family:inherit;
+  color:var(--text);
+}
+.search:focus{ outline:none; border-color:var(--gold); }
+.search::placeholder{ color:#5B6270; }
+
+/* stamp */
+.stamp{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 13px;
+  border:2px solid currentColor;
+  border-radius:3px;
+  transform:rotate(-2deg);
+  font-family:'IBM Plex Mono', monospace;
+  letter-spacing:0.03em;
+  font-size:0.74rem;
+  font-weight:500;
+  outline:1px solid currentColor;
+  outline-offset:2px;
+}
+.stamp.orange{ color:var(--orange); }
+.stamp.teal{ color:var(--teal); }
+.stamp.slate{ color:var(--slate); }
+
+/* strip banner (secondary views) */
+.strip{
+  position:relative;
+  height:120px;
+  margin:0 -48px 0;
+  overflow:hidden;
+}
+.strip img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0.4; }
+.strip::after{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(90deg, var(--ink) 10%, rgba(10,13,16,0.35) 60%, var(--ink) 100%);
+}
+
+/* finding rows */
+.finding{
+  display:grid;
+  grid-template-columns: 1.6fr 1fr 0.9fr 1fr;
+  gap:14px;
+  align-items:center;
+  padding:16px 4px;
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+}
+.finding:not(.head):hover{ background:var(--panel); }
+.finding.head{ cursor:default; font-size:0.75rem; color:var(--text-dim); }
+.finding .source{ font-weight:500; color:var(--text); }
+.finding .source span{ display:block; font-size:0.8rem; color:var(--text-dim); font-weight:400; margin-top:2px; }
+.conf-bar{
+  height:5px;
+  background:var(--line);
+  border-radius:3px;
+  overflow:hidden;
+  width:80px;
+}
+.conf-bar > i{ display:block; height:100%; background:var(--orange); }
+
+/* drawer */
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.6);
+  opacity:0; pointer-events:none;
+  transition:opacity .2s ease;
+  z-index:40;
+}
+.overlay.show{ opacity:1; pointer-events:auto; }
+
+.drawer{
+  position:fixed;
+  top:0; right:0;
+  height:100vh;
+  width:min(460px, 92vw);
+  background:var(--panel);
+  transform:translateX(100%);
+  transition:transform .25s ease;
+  z-index:41;
+  display:flex;
+  flex-direction:column;
+  box-shadow:-8px 0 30px rgba(0,0,0,0.5);
+  border-left:1px solid var(--line);
+}
+.drawer.show{ transform:translateX(0); }
+.drawer-head{
+  background:var(--panel-raised);
+  border-bottom:1px solid var(--line);
+  color:var(--text);
+  padding:24px 26px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.drawer-head h3{ margin:0 0 4px; font-size:1.2rem; }
+.drawer-head p{ margin:0; font-size:0.82rem; color:var(--gold); font-family:'IBM Plex Mono', monospace; }
+.drawer-close{ background:none; border:none; color:var(--text-dim); font-size:1.3rem; line-height:1; padding:0; }
+.drawer-close:hover{ color:var(--text); }
+.drawer-body{ padding:24px 26px; overflow-y:auto; flex:1; }
+.drawer-section{ margin-bottom:24px; }
+.drawer-section h4{
+  font-size:0.72rem;
+  color:var(--text-dim);
+  margin:0 0 10px;
+  font-weight:600;
+  letter-spacing:0.02em;
+}
+.evidence-shot{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:3px;
+  height:150px;
+  overflow:hidden;
+  margin-bottom:8px;
+}
+.evidence-shot img{ width:100%; height:100%; object-fit:cover; filter:saturate(0.7) brightness(0.75); }
+.evidence-shot::after{
+  content:"CAPTURED 2026-09-06 03:12 UTC";
+  position:absolute; left:10px; bottom:8px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:0.68rem;
+  color:#E8E5DC;
+  background:rgba(0,0,0,0.55);
+  padding:3px 7px;
+  border-radius:2px;
+}
+.evidence-shot::before{
+  content:"";
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 3px);
+  pointer-events:none;
+}
+.clause-quote{
+  border-left:3px solid var(--orange);
+  padding:10px 14px;
+  background:var(--orange-soft);
+  font-size:0.88rem;
+  line-height:1.5;
+  font-style:italic;
+  border-radius:0 3px 3px 0;
+  color:var(--text);
+}
+.notice-box{
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:16px;
+  font-size:0.85rem;
+  line-height:1.6;
+  background:var(--ink);
+  white-space:pre-line;
+  color:var(--text);
+}
+.human-flag{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  background:var(--slate-soft);
+  border-radius:3px;
+  padding:12px 14px;
+  font-size:0.82rem;
+  color:var(--text);
+  margin-top:12px;
+  line-height:1.5;
+}
+
+/* modal */
+.modal{
+  position:fixed; inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.65);
+  z-index:50;
+  padding:20px;
+}
+.modal.show{ display:flex; }
+.modal-box{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:4px;
+  width:min(560px, 100%);
+  max-height:88vh;
+  overflow-y:auto;
+  padding:32px;
+}
+.modal-box h3{ margin:0 0 6px; font-size:1.3rem; }
+.modal-box .desc{ color:var(--text-dim); font-size:0.88rem; margin:0 0 22px; }
+
+.dropzone{
+  position:relative;
+  border:1.5px dashed var(--line);
+  border-radius:4px;
+  padding:38px 20px;
+  text-align:center;
+  color:var(--text-dim);
+  font-size:0.9rem;
+  margin-bottom:10px;
+  transition:border-color .15s ease;
+  overflow:hidden;
+}
+.dropzone:hover{ border-color:var(--gold); color:var(--text); }
+.dropzone strong{ position:relative; display:block; color:var(--text); font-size:0.98rem; margin-bottom:5px; font-family:'Space Grotesk', sans-serif; font-weight:600; }
+.dropzone span.dz-sub{ position:relative; }
+.dropzone.bg-img::before{
+  content:"";
+  position:absolute; inset:0;
+  background-size:cover; background-position:center;
+  opacity:0.16;
+}
+.dropzone.bg-img.clearance::before{ background-image:url('https://images.unsplash.com/photo-1612544409025-e1f6a56c1152?w=1200&q=70&auto=format&fit=crop'); }
+
+.processing{
+  display:flex; align-items:center; gap:10px;
+  padding:20px 4px;
+  font-size:0.88rem;
+  color:var(--text-dim);
+  font-family:'IBM Plex Mono', monospace;
+}
+.dots span{
+  display:inline-block; width:5px; height:5px; border-radius:50%;
+  background:var(--gold); margin-right:3px;
+  animation:blink 1.1s infinite ease-in-out;
+}
+.dots span:nth-child(2){ animation-delay:.15s; }
+.dots span:nth-child(3){ animation-delay:.3s; }
+@keyframes blink{ 0%,80%,100%{opacity:.25;} 40%{opacity:1;} }
+
+.field-row{
+  display:grid; grid-template-columns: 130px 1fr;
+  gap:14px; padding:12px 0; border-bottom:1px solid var(--line);
+  opacity:0; transform:translateY(4px);
+  animation:fieldIn .35s ease forwards;
+}
+@keyframes fieldIn{ to{ opacity:1; transform:translateY(0);} }
+.field-row .flabel{ font-size:0.78rem; color:var(--text-dim); padding-top:2px; }
+.field-row .fval{ font-size:0.92rem; font-weight:500; color:var(--text); }
+.field-row .fquote{ font-size:0.78rem; color:var(--text-dim); font-style:italic; margin-top:4px; line-height:1.4; }
+
+.check-list{ list-style:none; padding:0; margin:0 0 20px; }
+.check-list li{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 0; font-size:0.88rem;
+  opacity:0; animation:fieldIn .3s ease forwards;
+  color:var(--text);
+}
+.check-list li .mark{ width:18px; height:18px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:0.7rem; }
+.check-list li .mark.ok{ background:var(--teal-soft); color:var(--teal); }
+.check-list li .mark.bad{ background:var(--orange-soft); color:var(--orange); }
+
+.verdict-stamp{
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  padding:26px 10px 10px;
+  opacity:0;
+}
+.verdict-stamp.show{ animation:stampIn .5s cubic-bezier(.2,1.4,.4,1) forwards; }
+@keyframes stampIn{ 0%{opacity:0; transform:scale(1.5) rotate(6deg);} 100%{opacity:1; transform:scale(1) rotate(-3deg);} }
+.verdict-stamp .big-stamp{
+  font-family:'IBM Plex Mono', monospace;
+  font-weight:600;
+  font-size:1.3rem;
+  letter-spacing:0.04em;
+  border:3px solid currentColor;
+  outline:2px solid currentColor;
+  outline-offset:4px;
+  padding:12px 28px;
+  border-radius:4px;
+}
+.verdict-note{ font-size:0.85rem; color:var(--text-dim); max-width:38ch; text-align:center; line-height:1.5; }
+
+.modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+
+/* responsive */
+@media (max-width: 860px){
+  .app{ grid-template-columns:1fr; }
+  .rail{ position:static; height:auto; flex-direction:row; align-items:center; padding:16px 18px; overflow-x:auto; }
+  .brand{ margin-bottom:0; margin-right:18px; }
+  .nav{ flex-direction:row; }
+  .rail-foot{ display:none; }
+  .main-inner{ padding:0 18px; }
+  .hero-content{ padding:0 18px 24px; }
+  .hero{ height:260px; }
+  .hero h1{ font-size:1.7rem; }
+  .strip{ margin:0 -18px 0; }
+  .view-head{ flex-direction:column; align-items:flex-start; }
+  .directions{ grid-template-columns:1fr; }
+  .stats{ flex-direction:column; }
+  .stat{ border-right:none; border-bottom:1px solid var(--line); }
+  .stat:last-child{ border-bottom:none; }
+  .reg-row, .finding{ grid-template-columns:1fr; gap:6px; }
+  .reg-row.head, .finding.head{ display:none; }
+  .reg-row > div, .finding > div{ font-size:0.88rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="rail">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <circle cx="13" cy="13" r="12" stroke="#E8A23D" stroke-width="1.4"/>
+        <path d="M8 13.2l3.3 3.3L18.4 9" stroke="#E8A23D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">Consentinel</span>
+    </div>
+    <ul class="nav">
+      <li><button class="nav-btn active" data-view="overview">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><rect x="1.5" y="1.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="1.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="9.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Overview
+      </button></li>
+      <li><button class="nav-btn" data-view="registry">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M4 2h6l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8h6M5.5 10.5h6M5.5 5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Permission Registry
+      </button></li>
+      <li><button class="nav-btn" data-view="sweep">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><circle cx="7.5" cy="7.5" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11.3 11.3L15 15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Enforcement Sweep
+      </button></li>
+      <li><button class="nav-btn" data-view="clearance">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none"><path d="M8.5 1.5l5.5 2v4.3c0 4-2.4 6.6-5.5 7.7-3.1-1.1-5.5-3.7-5.5-7.7V3.5l5.5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.3l1.8 1.8 3.2-3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Clearance Check
+      </button></li>
+    </ul>
+    <div class="rail-foot">
+      <strong>Vantage Talent Group</strong>
+      Agency console · Business affairs
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- OVERVIEW -->
+    <section class="view active" id="view-overview">
+      <div class="hero">
+        <img src="https://images.unsplash.com/photo-1603126004372-e63e3b53934b?w=1600&q=80&auto=format&fit=crop" alt="">
+        <div class="hero-content">
+          <p class="eyebrow">AGENCY CONSOLE</p>
+          <h1>One registry, two directions.</h1>
+          <p>Every permission slip your clients have signed, in one place — watched outward for people using their likeness without one, and checked inward against anything your studio partners want to ship.</p>
+          <button class="btn" onclick="openAddModal()">+ Add permission slip</button>
+        </div>
+      </div>
+      <div class="main-inner">
+
+      <div class="stats">
+        <div class="stat"><span class="num">128</span><span class="lbl">Active permission slips</span></div>
+        <div class="stat orange"><span class="num">7</span><span class="lbl">Open findings this week</span></div>
+        <div class="stat teal"><span class="num">42</span><span class="lbl">Assets checked before release</span></div>
+        <div class="stat"><span class="num">5</span><span class="lbl">Languages under sweep</span></div>
+      </div>
+
+      <div class="directions">
+        <div class="dir-card out" onclick="showView('sweep')">
+          <h3>Enforcement <span class="tag">outward</span></h3>
+          <p>Who is using your clients' face or voice without a signed grant? We sweep text, audio, video and image sources in five languages and build the case file — you decide what happens next.</p>
+        </div>
+        <div class="dir-card in" onclick="showView('clearance')">
+          <h3>Clearance <span class="tag">inward</span></h3>
+          <p>Before a studio partner ships a scene, an ad, or a dub — check it against the registry. Cleared, blocked, or unverified. Nothing defaults to cleared.</p>
+        </div>
+      </div>
+
+      <h4 style="font-size:0.72rem; color:var(--text-dim); margin:0 0 12px; font-weight:600;">Recent activity</h4>
+      <div class="register">
+        <div class="reg-row head"><div>Item</div><div>Direction</div><div>Detail</div><div>Status</div><div></div></div>
+        <div class="reg-row" onclick="showView('sweep')">
+          <div class="primary">clonevoice.io<span class="sub">Synthetic voice offering</span></div>
+          <div><span class="badge expiring"><span class="dot"></span>enforcement</span></div>
+          <div>Lena Voss — no matching grant</div>
+          <div><span class="stamp orange">unauthorized</span></div>
+          <div></div>
+        </div>
+        <div class="reg-row" onclick="showView('clearance')">
+          <div class="primary">Nordholm Media — trailer cut 4<span class="sub">Self-check, submitted by post</span></div>
+          <div><span class="badge active"><span class="dot"></span>clearance</span></div>
+          <div>Théo Marchand — voice, EU territory</div>
+          <div><span class="stamp teal">cleared</span></div>
+          <div></div>
+        </div>
+        <div class="reg-row" onclick="showView('registry')">
+          <div class="primary">Meridian Streaming grant<span class="sub">Renewal due in 11 days</span></div>
+          <div><span class="badge active"><span class="dot"></span>registry</span></div>
+          <div>Lena Voss — voice + likeness, US/CA</div>
+          <div><span class="badge expiring"><span class="dot"></span>expiring</span></div>
+          <div></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <!-- REGISTRY -->
+    <section class="view" id="view-registry">
+      <div class="main-inner">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">Permission registry</p>
+          <h1>Every signed grant, on record.</h1>
+          <p>The spine of the system. Add a contract and Consentinel reads it, fills in the fields, and quotes the exact sentence behind each one.</p>
+        </div>
+        <button class="btn" onclick="openAddModal()">+ Add permission slip</button>
+      </div>
+
+      <div class="toolbar">
+        <input class="search" id="registrySearch" placeholder="Search performer or licensee…" oninput="filterRegistry()">
+      </div>
+
+      <div class="register" id="registryTable">
+        <div class="reg-row head"><div>Performer</div><div>Licensee</div><div>Grants</div><div>Territory</div><div>Status</div></div>
+      </div>
+      </div>
+    </section>
+
+    <!-- SWEEP -->
+    <section class="view" id="view-sweep">
+      <div class="main-inner">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">Enforcement sweep · outward</p>
+          <h1>Findings from this week's sweep.</h1>
+          <p>Gemini writes the search phrases in five languages; a separate, deterministic rule engine checks every hit against the registry before it's called unauthorized.</p>
+        </div>
+        <button class="btn ghost small" onclick="runSweep()">Run sweep now</button>
+      </div>
+      </div>
+      <div class="strip">
+        <img src="https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?w=1400&q=75&auto=format&fit=crop" alt="">
+      </div>
+      <div class="main-inner">
+      <div class="finding head" style="margin-top:24px;">
+        <div>Source</div><div>Performer</div><div>Confidence</div><div>Verdict</div>
+      </div>
+      <div id="findingsTable"></div>
+      </div>
+    </section>
+
+    <!-- CLEARANCE -->
+    <section class="view" id="view-clearance">
+      <div class="main-inner">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">Clearance check · inward</p>
+          <h1>Can we prove coverage for this?</h1>
+          <p>Upload a clip from a delivery and the same rules that catch outsiders answer for your own production: fine to ship, blocked, or unverified.</p>
+        </div>
+      </div>
+
+      <div class="dropzone bg-img clearance" style="margin-top:24px; max-width:520px;" onclick="openClearanceModal()">
+        <strong>Drop a clip, or click to select a file</strong>
+        <span class="dz-sub">Checked against every active grant in the registry</span>
+      </div>
+
+      <h4 style="font-size:0.72rem; color:var(--text-dim); margin:34px 0 12px; font-weight:600;">Recently checked</h4>
+      <div class="register">
+        <div class="reg-row head"><div>Asset</div><div>Performer</div><div>Territory</div><div>Status</div><div></div></div>
+        <div class="reg-row"><div class="primary">Trailer cut 4<span class="sub">Nordholm Media, submitted by post</span></div><div>Théo Marchand</div><div>EU</div><div><span class="stamp teal">cleared</span></div><div></div></div>
+        <div class="reg-row"><div class="primary">Radio spot B<span class="sub">Cascade Films, submitted by legal</span></div><div>Lena Voss</div><div>US &amp; Canada</div><div><span class="stamp slate">unverified</span></div><div></div></div>
+        <div class="reg-row"><div class="primary">Social teaser 2<span class="sub">Meridian Streaming</span></div><div>Lena Voss</div><div>Worldwide excl. China</div><div><span class="stamp orange">blocked</span></div><div></div></div>
+      </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- DRAWER -->
+<div class="overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div>
+      <h3 id="drawerTitle">clonevoice.io</h3>
+      <p id="drawerSub">CASE-2026-0417</p>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">
+      <h4>Evidence snapshot</h4>
+      <div class="evidence-shot">
+        <img src="https://images.unsplash.com/photo-1518930259200-3e5b29f42096?w=900&q=75&auto=format&fit=crop" alt="">
+      </div>
+    </div>
+    <div class="drawer-section">
+      <h4>Breached clause</h4>
+      <div class="clause-quote">"Licensee may not generate a synthetic reproduction of Performer's voice for any purpose outside the Territory defined in Schedule A."</div>
+    </div>
+    <div class="drawer-section">
+      <h4>Matched grant</h4>
+      <p style="font-size:0.88rem; margin:0; line-height:1.5; color:var(--text-dim);">Lena Voss → Meridian Streaming · Voice only · US &amp; Canada · Valid through Mar 2028. This offering targets a Portuguese-speaking market with no corresponding grant.</p>
+    </div>
+    <div class="drawer-section">
+      <h4>Draft takedown notice</h4>
+      <div class="notice-box">To whom it may concern,
+
+This notice concerns an unauthorized synthetic reproduction of our client's voice hosted at the above address. No license permitting this use exists in our records.
+
+We request removal within 5 business days.
+
+— Vantage Talent Group, on behalf of Lena Voss</div>
+      <div class="human-flag">⚠ Draft only. Nothing is sent automatically — review and send from your own counsel's account.</div>
+    </div>
+    <button class="btn" style="width:100%;">Approve &amp; hand to counsel</button>
+  </div>
+</div>
+
+<!-- ADD PERMISSION SLIP MODAL -->
+<div class="modal" id="addModal">
+  <div class="modal-box">
+    <h3>Add a permission slip</h3>
+    <p class="desc">Drop the contract. Consentinel extracts the terms and quotes the source sentence for each one — you correct anything wrong before it's saved.</p>
+    <div id="addModalStage1">
+      <div class="dropzone" onclick="startExtraction()">
+        <strong>lena-voss-meridian-2026.pdf</strong>
+        <span class="dz-sub">Click to simulate reading this contract</span>
+      </div>
+    </div>
+    <div id="addModalStage2" style="display:none;">
+      <div class="processing"><span class="dots"><span></span><span></span><span></span></span> Reading contract…</div>
+    </div>
+    <div id="addModalStage3" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn ghost small" onclick="closeAddModal()">Cancel</button>
+      <button class="btn small" id="saveSlipBtn" style="display:none;" onclick="closeAddModal()">Save to registry</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLEARANCE CHECK MODAL -->
+<div class="modal" id="clearModal">
+  <div class="modal-box">
+    <h3>Check a clip for clearance</h3>
+    <p class="desc">We identify the performer, then check the registry for a grant that covers this exact use.</p>
+    <div id="clearStage1">
+      <div class="dropzone" onclick="startClearanceCheck()">
+        <strong>trailer_cut_5_final.mp4</strong>
+        <span class="dz-sub">Click to simulate submitting this clip</span>
+      </div>
+    </div>
+    <div id="clearStage2" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn ghost small" onclick="closeClearanceModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- nav ---------- */
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav-btn[data-view="'+name+'"]').classList.add('active');
+  window.scrollTo({top:0});
+}
+document.querySelectorAll('.nav-btn').forEach(b=>{
+  b.addEventListener('click', ()=>showView(b.dataset.view));
+});
+
+/* ---------- registry data ---------- */
+const registryData = [
+  {performer:"Lena Voss", licensee:"Meridian Streaming", grants:"Voice only", territory:"US & Canada", status:"active", validity:"Through Mar 2028"},
+  {performer:"Lena Voss", licensee:"Nordholm Media", grants:"Voice + likeness", territory:"Worldwide excl. China", status:"expiring", validity:"Renews in 11 days"},
+  {performer:"Théo Marchand", licensee:"Cascade Films", grants:"Likeness only", territory:"EU", status:"active", validity:"Through Jan 2029"},
+  {performer:"Théo Marchand", licensee:"Meridian Streaming", grants:"Voice + likeness", territory:"France, Belgium", status:"active", validity:"Through Aug 2027"},
+  {performer:"Ines Cabral", licensee:"Nordholm Media", grants:"Voice only", territory:"Brazil", status:"expired", validity:"Expired Jun 2026"},
+];
+
+function badgeFor(status){
+  if(status==="active") return '<span class="badge active"><span class="dot"></span>active</span>';
+  if(status==="expiring") return '<span class="badge expiring"><span class="dot"></span>expiring soon</span>';
+  return '<span class="badge expired"><span class="dot"></span>expired</span>';
+}
+
+function renderRegistry(filter=""){
+  const table = document.getElementById('registryTable');
+  table.innerHTML = '<div class="reg-row head"><div>Performer</div><div>Licensee</div><div>Grants</div><div>Territory</div><div>Status</div></div>';
+  registryData
+    .filter(r => (r.performer+r.licensee).toLowerCase().includes(filter.toLowerCase()))
+    .forEach(r=>{
+      const row = document.createElement('div');
+      row.className = 'reg-row';
+      row.innerHTML = `
+        <div class="primary">${r.performer}<span class="sub">${r.validity}</span></div>
+        <div>${r.licensee}</div>
+        <div>${r.grants}</div>
+        <div>${r.territory}</div>
+        <div>${badgeFor(r.status)}</div>`;
+      row.onclick = ()=>openDrawerFor(r);
+      table.appendChild(row);
+    });
+}
+function filterRegistry(){ renderRegistry(document.getElementById('registrySearch').value); }
+renderRegistry();
+
+function openDrawerFor(r){
+  document.getElementById('drawerTitle').textContent = r.performer + ' → ' + r.licensee;
+  document.getElementById('drawerSub').textContent = 'REGISTRY ENTRY';
+  document.getElementById('drawerOverlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+
+/* ---------- findings ---------- */
+const findings = [
+  {source:"clonevoice.io", detail:"Synthetic voice offering, Portuguese", performer:"Lena Voss", confidence:92, verdict:"unauthorized"},
+  {source:"starvoices.net", detail:"Voice pack for sale, Japanese listing", performer:"Théo Marchand", confidence:78, verdict:"unauthorized"},
+  {source:"aiendorsements.tv", detail:"Synthetic endorsement clip, Spanish", performer:"Lena Voss", confidence:64, verdict:"under review"},
+  {source:"dubforge.app", detail:"Voice cloning demo reel", performer:"Ines Cabral", confidence:41, verdict:"unverified"},
+];
+function verdictStamp(v){
+  if(v==="unauthorized") return '<span class="stamp orange">unauthorized</span>';
+  if(v==="under review") return '<span class="stamp slate">under review</span>';
+  return '<span class="stamp slate">unverified</span>';
+}
+function renderFindings(){
+  const table = document.getElementById('findingsTable');
+  table.innerHTML = '';
+  findings.forEach(f=>{
+    const row = document.createElement('div');
+    row.className = 'finding';
+    row.innerHTML = `
+      <div class="source">${f.source}<span>${f.detail}</span></div>
+      <div>${f.performer}</div>
+      <div class="conf-bar"><i style="width:${f.confidence}%"></i></div>
+      <div>${verdictStamp(f.verdict)}</div>`;
+    row.onclick = ()=>openFindingDrawer(f);
+    table.appendChild(row);
+  });
+}
+renderFindings();
+
+function openFindingDrawer(f){
+  document.getElementById('drawerTitle').textContent = f.source;
+  document.getElementById('drawerSub').textContent = 'CASE-2026-0417 · ' + f.performer;
+  document.getElementById('drawerOverlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function closeDrawer(){
+  document.getElementById('drawerOverlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+function runSweep(){
+  const btn = event.target;
+  const original = btn.textContent;
+  btn.textContent = "Sweeping…";
+  setTimeout(()=>{ btn.textContent = original; }, 1400);
+}
+
+/* ---------- add permission slip modal ---------- */
+function openAddModal(){
+  document.getElementById('addModal').classList.add('show');
+  document.getElementById('addModalStage1').style.display='block';
+  document.getElementById('addModalStage2').style.display='none';
+  document.getElementById('addModalStage3').style.display='none';
+  document.getElementById('addModalStage3').innerHTML='';
+  document.getElementById('saveSlipBtn').style.display='none';
+}
+function closeAddModal(){ document.getElementById('addModal').classList.remove('show'); }
+
+function startExtraction(){
+  document.getElementById('addModalStage1').style.display='none';
+  document.getElementById('addModalStage2').style.display='flex';
+  setTimeout(()=>{
+    document.getElementById('addModalStage2').style.display='none';
+    const stage3 = document.getElementById('addModalStage3');
+    stage3.style.display='block';
+    const fields = [
+      {label:"Performer", value:"Lena Voss", quote:"“…between Lena Voss (\\u201cPerformer\\u201d) and Meridian Streaming Inc.…”"},
+      {label:"Licensee", value:"Meridian Streaming Inc.", quote:"“…and Meridian Streaming Inc., a Delaware corporation…”"},
+      {label:"Permitted", value:"Synthetic voice only", quote:"“Licensee may generate a synthetic reproduction of Performer's voice…”"},
+      {label:"Territory", value:"United States, Canada", quote:"“…limited to the United States and Canada (the ‘Territory’)…”"},
+      {label:"Validity", value:"Through March 2028", quote:"“This grant is valid for a period of five (5) years from the Effective Date.”"},
+    ];
+    fields.forEach((f,i)=>{
+      const row = document.createElement('div');
+      row.className='field-row';
+      row.style.animationDelay = (i*0.12)+'s';
+      row.innerHTML = `<div class="flabel">${f.label}</div><div><div class="fval">${f.value}</div><div class="fquote">${f.quote}</div></div>`;
+      stage3.appendChild(row);
+    });
+    setTimeout(()=>{ document.getElementById('saveSlipBtn').style.display='inline-block'; }, fields.length*120+200);
+  }, 1300);
+}
+
+/* ---------- clearance check modal ---------- */
+function openClearanceModal(){
+  document.getElementById('clearModal').classList.add('show');
+  document.getElementById('clearStage1').style.display='block';
+  document.getElementById('clearStage2').style.display='none';
+  document.getElementById('clearStage2').innerHTML='';
+}
+function closeClearanceModal(){ document.getElementById('clearModal').classList.remove('show'); }
+
+function startClearanceCheck(){
+  document.getElementById('clearStage1').style.display='none';
+  const stage2 = document.getElementById('clearStage2');
+  stage2.style.display='block';
+  stage2.innerHTML = '<div class="processing"><span class="dots"><span></span><span></span><span></span></span> Checking against registry…</div>';
+  setTimeout(()=>{
+    const checks = [
+      {label:"Performer identified — Théo Marchand", ok:true},
+      {label:"Active grant found — Cascade Films", ok:true},
+      {label:"Territory covered — EU release", ok:true},
+      {label:"Within validity window — through Jan 2029", ok:true},
+    ];
+    let html = '<ul class="check-list">';
+    checks.forEach((c,i)=>{
+      html += `<li style="animation-delay:${i*0.15}s"><span class="mark ${c.ok?'ok':'bad'}">${c.ok?'✓':'✕'}</span>${c.label}</li>`;
+    });
+    html += '</ul>';
+    html += `<div class="verdict-stamp" id="verdictBox">
+      <div class="big-stamp" style="color:var(--teal);">CLEARED TO SHIP</div>
+      <p class="verdict-note">Every use in this clip is covered by an active grant. Logged to the registry as CASE-CLR-0512.</p>
+    </div>`;
+    stage2.innerHTML = html;
+    setTimeout(()=>{ document.getElementById('verdictBox').classList.add('show'); }, checks.length*150+100);
+  }, 1200);
+}
+</script>
+</body>
+</html>

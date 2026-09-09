@@ -3,33 +3,70 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Consentinel{% endblock %}</title>
-<link rel="stylesheet" href="/static/style.css">
-<link rel="stylesheet" href="/static/theme.css">
+<title>{% block title %}Consentinel — Agency Console{% endblock %}</title>
+<link rel="stylesheet" href="/static/console.css">
 </head>
 <body>
 
-<header>
-  <div class="wrap">
-    <a class="brand" href="/">Consentinel</a>
-    <p class="tagline">Permission slips for AI copies of performers</p>
-    <nav>
-      <a href="/"          class="{{ 'on' if nav == 'registry' }}">Registry</a>
-      <a href="/findings"  class="{{ 'on' if nav == 'findings' }}">Found on the web</a>
-      <a href="/clearance" class="{{ 'on' if nav == 'clearance' }}">Our own footage</a>
-      {% if k %}<a class="nav-action" href="/consents/new?k={{ k }}">Add a permission slip</a>{% endif %}
-    </nav>
-  </div>
-</header>
+<div class="app">
+  <nav class="rail">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="13" cy="13" r="12" stroke="#E8A23D" stroke-width="1.4"/>
+        <path d="M8 13.2l3.3 3.3L18.4 9" stroke="#E8A23D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">Consentinel</span>
+    </div>
 
-<main class="wrap">
+    <ul class="nav">
+      <li><a class="nav-btn {{ 'active' if nav == 'overview' }}" href="/{{ q }}">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="1.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="9.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Overview
+      </a></li>
+      <li><a class="nav-btn {{ 'active' if nav == 'registry' }}" href="/registry{{ q }}">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><path d="M4 2h6l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8h6M5.5 10.5h6M5.5 5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Permission Registry
+      </a></li>
+      <li><a class="nav-btn {{ 'active' if nav == 'findings' }}" href="/findings{{ q }}">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11.3 11.3L15 15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Enforcement Sweep
+      </a></li>
+      <li><a class="nav-btn {{ 'active' if nav == 'clearance' }}" href="/clearance{{ q }}">
+        <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true"><path d="M8.5 1.5l5.5 2v4.3c0 4-2.4 6.6-5.5 7.7-3.1-1.1-5.5-3.7-5.5-7.7V3.5l5.5-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 8.3l1.8 1.8 3.2-3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Clearance Check
+      </a></li>
+    </ul>
+
+    <div class="rail-foot">
+      <strong>Ardent Talent Group</strong>
+      Demo console · every name and result here is invented
+    </div>
+  </nav>
+
+  <main class="main">
+    <section class="view active">
 {% block content %}{% endblock %}
-</main>
+    </section>
+  </main>
+</div>
 
-<footer class="wrap">
-  <p>Demo data only. Mira Vance, Halcyon Pictures and every result shown here are invented.
-     No real person&rsquo;s name, face or voice appears anywhere in this application.</p>
-</footer>
+{#
+  The detail panel. One per page, filled by console.js from whichever row was
+  clicked. Rows render their own detail up front and hide it, so the panel never
+  builds markup from a string — see the note at the top of console.js.
+#}
+<div class="overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer" aria-label="Detail">
+  <div class="drawer-head">
+    <div>
+      <h3 id="drawerTitle"></h3>
+      <p id="drawerSub"></p>
+    </div>
+    <button class="drawer-close" data-drawer-close aria-label="Close">&#10005;</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
 
+<script src="/static/console.js" defer></script>
 </body>
 </html>

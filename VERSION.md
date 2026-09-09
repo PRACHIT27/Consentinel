@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.3`**
+**Doc set version: `v3.3.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,99 @@ commit.
 # Log
 
 Newest first.
+
+## v3.3.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md` §2.0 (new), `COMPETITION.md` §5, `README.md`, `CLAUDE.md` Status
+**Type:** MINOR - a cut work unit is un-cut and done; no structural change, so the freeze holds
+
+**WU-24 is done. Agent Engine is real.** Four runtimes, each on its own service account:
+
+    cn-ingest        ConsentIngest         projects/255860737849/.../reasoningEngines/...
+    cn-triage        Triage                isolated: hostile input
+    cn-clearance     ClearanceInspector
+    cn-enforcement   QueryPlanner
+
+Resource names are in `infra/agent_engine/deployed.json`, and what each one answered when called is
+in `infra/agent_engine/smoke_output.json`. Both committed: "we deployed to Agent Engine" is a
+submission claim, and a claim needs something to point at.
+
+It was cut earlier the same day and un-cut at Prachit's call. The reason for the cut was that it had
+no scaffolding while the hosted URL was still unverified; once the URL was recorded, the reason was
+gone, and the rules quote *"powered by Gemini and Google Cloud Agent Builder"* directly.
+
+**What may be claimed, and what may not.** `COMPETITION.md` §5 now spells this out. The agents are
+built with ADK and deployed to Agent Engine; the app runs on Cloud Run; the reconciler that decides
+every verdict runs in code next to the registry, because it reads the registry and has no model.
+Do not say the whole pipeline executes on Agent Engine - it does not, and that is a claim a judge
+can puncture in one question.
+
+**`DESIGN.md` §2.0 is new and worth reading before anyone redeploys.** Four things fail in ways that
+name something other than the cause:
+
+- `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are reserved env var names; passing either
+  fails the create outright
+- `extra_packages` is tarred relative to the working directory, so an absolute path produces a
+  runtime that builds, then will not start: `No module named 'consentinel'`
+- a runtime opens its session as *itself*, so its own service account needs `aiplatform.sessions.*`
+  (and it is `sessionEvents.append`, not `.create`)
+- the container has to resolve **the same ADK this machine has**, and specifically a *recent* one:
+  Agent Engine's own serving code passes `auto_create_session` to `Runner`, which older ADK does not
+  accept. This machine went 1.14.1 -> 2.8.0 to make that true; the suite passes on both
+
+**Action required:** nobody. But if you rebuild a runtime from a laptop with an old `google-adk`,
+expect it to deploy and then refuse every call. `pip install --upgrade google-adk` first.
+
+## v3.2.5 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` Status
+**Type:** MINOR - a work unit closed, and one instruction for whoever touches it next
+
+**WU-17 is done.** `consentinel/agents/clearance/` and `POST /clearance/check`. Epic 6 closes.
+
+The one thing to know if you work on it: **it calls the same reconciler as the sweep.** Do not add a
+second rule engine for the inward direction. That equivalence - a studio gets the same answer about
+its own footage as it would get about a stranger's website - is the product's claim, and two engines
+would drift apart in a week.
+
+The model's role is narrow on purpose. It reads the file and can only ever *withhold* clearance, by
+disagreeing with the delivery note or finding nobody in the file. Clearance comes from a contract
+record it never sees. So no prompt change can turn a blocked clip into a cleared one.
+
+Not built, and the Status entry says so: Content Credentials parsing, invoice/SOW parsing, proxy
+transcoding, manifest rollup. The submit form takes declared facts instead - the studio knows who is
+in its own shot.
+
+Also noted in Status: both upload paths work on the hosted URL, and both need the `?k=` key.
+
+## v3.2.4 - 2026-09-09 - Prachit (with Claude)
+**Files:** `README.md`, `COMPETITION.md` §11, `CLAUDE.md` Status
+**Type:** PATCH - records a fact; nothing to build against changed
+
+**The hosted URL is now written down.** It is the first item CLAUDE.md lists as blocking the
+submission, and until now it existed only inside a v2.1.0 log entry, which nobody preparing the
+submission would think to read:
+
+    https://consentinel-web-255860737849.us-central1.run.app
+
+Cloud Run answers on two addresses for this service - the project-number one above, which
+`gcloud run deploy` prints, and `https://consentinel-web-ayr2oo7nzq-uc.a.run.app`, which
+`gcloud run services describe` reports as `status.url`. Both were tested on all four screens after
+the 9 Sep deploy and both return 200. Use the project-number form in the submission, so the repo and
+the Devpost entry agree.
+
+**Two claims about Agent Engine removed.** `COMPETITION.md` §5 said we "additionally deploy the
+agents to Agent Engine", and the README said untrusted content runs "in an isolated Agent Runtime
+deployment". WU-24 is cut, so neither is true. Both now describe what actually runs: ADK agents,
+Gemini through `google-genai` on Vertex AI, Cloud Run, and triage isolated by the harness policy
+holding no tools, no secrets and no write access - which is real, and is the part that matters. §5
+now says in as many words not to claim Agent Engine in the writeup or the video.
+
+Also corrected the README's own first line. It claimed the project was built on **Agent Builder**,
+and nothing is deployed to Agent Runtime — WU-24 is cut (see CLAUDE.md). It now names what we
+actually run: Gemini on Vertex AI, Google Cloud, and Parallel Search. Worth being careful here: a
+judge checking a claim they can't find is worse than a shorter list.
+
+The UI redesign that went out on the same deploy is not a governed change and has no entry — see the
+`ui/console-from-mockup` PR.
 
 ## v3.2.3 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` Status

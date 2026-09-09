@@ -1,65 +1,112 @@
 {% extends "base.html" %}
-{% block title %}Found on the web — Consentinel{% endblock %}
+{% block title %}Enforcement Sweep — Consentinel{% endblock %}
 
 {% block content %}
-<h1>Found on the web</h1>
-<p class="lead">Places selling or using an AI copy of someone we protect. Each one is checked against
-   the registry, and every answer names the reason and shows the sentence it rests on.</p>
-
-<div class="tally">
-  <span class="pill bad">{{ counts.unauthorized }} not allowed</span>
-  <span class="pill ok">{{ counts.authorized }} allowed</span>
-  <span class="pill warn">{{ counts.ambiguous }} unclear</span>
-</div>
-
-{% for f in findings %}
-  {% set style, label = f.verdict | verdict_style %}
-  <article class="card finding {{ style }}">
-    <div class="finding-head">
-      <span class="pill {{ style }}">{{ label }}</span>
-      {% if f.is_commercial %}<span class="pill muted">being sold</span>{% endif %}
-      {% if f.modality %}<span class="pill muted">{{ f.modality | ev }}</span>{% endif %}
-      {% if f.injection_suspected is defined and f.injection_suspected %}
-        <span class="pill warn">tried to instruct our agent</span>
-      {% endif %}
+<div class="main-inner">
+  <div class="view-head">
+    <div>
+      <p class="eyebrow">Enforcement sweep · outward</p>
+      <h1>Findings from the latest sweep.</h1>
+      <p>Gemini writes the search phrases in five languages; a separate, deterministic rule engine
+         checks every hit against the registry before anything is called unauthorised.</p>
     </div>
+    <div class="stats" style="margin:0; flex:none; min-width:280px;">
+      <div class="stat orange" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.unauthorized }}</span><span class="lbl">not allowed</span></div>
+      <div class="stat teal" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.authorized }}</span><span class="lbl">allowed</span></div>
+      <div class="stat" style="padding:12px 16px;"><span class="num" style="font-size:1.3rem;">{{ counts.ambiguous }}</span><span class="lbl">unclear</span></div>
+    </div>
+  </div>
 
-    <p class="url">{{ f.url }}</p>
+  <div class="finding head" style="margin-top:24px;">
+    <div>Source</div><div>Performer</div><div>Aimed at</div><div>Confidence</div><div>Verdict</div>
+  </div>
 
-    {% if f.evidence_quote %}
-      <blockquote class="evidence">{{ f.evidence_quote }}</blockquote>
-    {% else %}
-      <p class="note">No quote on this one — that is why it is unclear rather than decided.</p>
-    {% endif %}
+  {% for f in findings %}
+    {% set stamp, label = f.verdict | verdict_stamp %}
+    {% set performer = performers.get(f.performer_id) %}
+    <div class="finding"
+         data-drawer-title="{{ f.url | hostname }}"
+         data-drawer-sub="{{ f.id }} &middot; {{ performer.name if performer else f.performer_id }}">
+      <div class="source">{{ f.url | hostname }}<span>
+        {%- if f.modality %}synthetic {{ f.modality | ev }} offering{% else %}web finding{% endif -%}
+        {%- if f.is_commercial %} &middot; offered for sale{% endif -%}
+      </span></div>
+      <div>{{ performer.name if performer else f.performer_id }}</div>
+      <div class="loc">
+        {{ f.target_territories | join(', ') or '—' }}
+        <span style="display:block;opacity:0.7;">found in {{ f.discovered_locale }}</span>
+      </div>
+      <div>
+        {% if f.confidence is not none %}
+          <div class="conf-bar"><i style="width:{{ (f.confidence * 100) | round | int }}%"></i></div>
+          <span class="mono" style="font-size:0.72rem;color:var(--text-dim);">{{ (f.confidence * 100) | round | int }}%</span>
+        {% else %}<span class="loc">—</span>{% endif %}
+      </div>
+      <div>
+        <span class="stamp {{ stamp }}">{{ label }}</span>
+        {% if f.status | ev == 'blocked_unsafe' %}<span class="badge expired" style="margin-top:6px;"><span class="dot"></span>not opened</span>{% endif %}
+        {% if f.injection_suspected is defined and f.injection_suspected %}<span class="badge expiring" style="margin-top:6px;"><span class="dot"></span>tried to instruct us</span>{% endif %}
+      </div>
 
-    <dl class="facts tight">
-      <dt>Why</dt>
-      <dd>{{ f.reasoning }}</dd>
+      <div data-drawer-body hidden>
+        {% if f.evidence_quote %}
+          <div class="drawer-section">
+            <h4>What the page said</h4>
+            <div class="clause-quote">{{ f.evidence_quote }}</div>
+            <p class="mono" style="font-size:0.72rem; color:var(--text-dim); margin:8px 0 0;">{{ f.url }}</p>
+          </div>
+        {% endif %}
 
-      <dt>Aimed at</dt>
-      <dd>
-        {% for t in f.target_territories %}<span class="tag">{{ t }}</span>
-        {% else %}<span class="hint">could not tell</span>{% endfor %}
-      </dd>
+        <div class="drawer-section">
+          <h4>Why this verdict</h4>
+          <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+            {{ f.reasoning | replace('_', ' ') }}</p>
+        </div>
 
-      <dt>Found by searching</dt>
-      <dd><span class="tag">{{ f.discovered_locale }}</span>
-          <span class="hint">{{ f.discovered_via | ev }}</span></dd>
+        <div class="drawer-section">
+          <h4>Matched grant</h4>
+          <p style="font-size:0.88rem; margin:0; line-height:1.6; color:var(--text-dim);">
+            {% if f.matched_consent_id and consents.get(f.matched_consent_id) %}
+              {% set c = consents[f.matched_consent_id] %}
+              {{ c.licensee }} &mdash;
+              {{ c.permitted_uses | map('ev') | map('replace', '_', ' ') | join(', ') }}
+              in {{ c.territories | join(', ') }}{% if c.valid_to %}, through
+              {{ c.valid_to.strftime('%b %Y') }}{% endif %}.
+            {% else %}
+              <span style="color:var(--orange);">Nothing in the registry permits this.</span>
+              No signed grant covers this use in
+              {{ f.target_territories | join(', ') or 'the territory this page targets' }}.
+            {% endif %}
+          </p>
+        </div>
 
-      {% if f.matched_consent_id and consents.get(f.matched_consent_id) %}
-        {% set c = consents[f.matched_consent_id] %}
-        <dt>Covered by</dt>
-        <dd>{{ c.licensee }} &mdash; {{ c.territories | join(", ") }},
-            {{ c.valid_from.date() if c.valid_from }} to {{ c.valid_to.date() if c.valid_to }}</dd>
-      {% endif %}
+        {% if f.evidence_uri %}
+          <div class="drawer-section">
+            <h4>Evidence snapshot</h4>
+            <p class="mono" style="font-size:0.72rem; color:var(--text-dim); margin:0; word-break:break-all;">
+              {{ f.evidence_uri }}</p>
+            <p style="font-size:0.82rem; color:var(--text-dim); margin:8px 0 0;">Held with a hold on
+               the object, so nobody &mdash; including us &mdash; can delete or alter it.</p>
+          </div>
+        {% endif %}
 
-      {% if f.confidence is not none %}
-        <dt>Confidence</dt>
-        <dd>{{ "%.0f%%" | format(f.confidence * 100) }}</dd>
-      {% endif %}
-    </dl>
-  </article>
-{% else %}
-  <p class="empty">Nothing found yet. Run a sweep.</p>
-{% endfor %}
+        {% if f.status | ev == 'blocked_unsafe' %}
+          <div class="human-flag" style="background:var(--slate-soft);">The address came back as
+            known-dangerous, so we never opened it. Refusing to look is not the same as deciding the
+            use was allowed, which is why this stays unclear rather than allowed.</div>
+        {% endif %}
+
+        <div class="human-flag">Nothing is sent from here. A notice is drafted for your counsel to
+          read, and a person sends it from their own account.</div>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-row">No findings yet. A sweep writes them here.</div>
+  {% endfor %}
+
+  <p class="disclaimer">Every address shown ends in <span class="mono">.invalid</span> &mdash; a
+     reserved suffix that can never resolve to a real website, so nothing here points at anyone's
+     actual page. We look for commercial offerings that advertise themselves; we do not claim to
+     detect synthetic media from the pixels.</p>
+</div>
 {% endblock %}

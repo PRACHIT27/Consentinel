@@ -69,6 +69,7 @@ class FakeStore:
         self.saved: list[Consent] = []
 
     def list_performers(self): return list(self.performers)
+    def upsert_asset(self, a): self.assets = [x for x in self.assets if x.id != a.id] + [a]; return a
     def list_consents(self, performer_id): return [c for c in self.consents if c.performer_id == performer_id]
     def list_findings(self, **kw): return list(self.findings)
     def list_assets(self, production_id, state=None): return list(self.assets)
@@ -98,8 +99,19 @@ def test_health_does_not_touch_the_database(client):
     assert r.status_code == 200 and r.json() == {"ok": True}
 
 
-def test_registry_shows_the_grant_and_its_quote(client):
+def test_the_front_page_counts_from_the_store_rather_than_inventing_numbers(client):
+    """A dashboard with made-up figures is worse than no dashboard: it is the
+    first thing a viewer trusts and the first thing that breaks that trust."""
     body = client.get("/").text
+    assert "One registry, two directions." in body
+    assert "Mira Vance" in body                 # the open finding names its performer
+    assert "a.invalid" in body                  # ...and the site it was found on
+    assert "f.exr" in body                      # the blocked clip, from the other direction
+    assert "v.wav" not in body, "a cleared clip needs no attention, so it stays off the front page"
+
+
+def test_registry_shows_the_grant_and_its_quote(client):
+    body = client.get("/registry").text
     assert "Mira Vance" in body
     assert "Halcyon Pictures" in body
     assert "Producer may generate synthetic voice performances." in body
@@ -110,22 +122,33 @@ def test_findings_lead_with_the_breaches(client):
     """Sorting alphabetically would put "ambiguous" first and bury the thing the
     page exists to show."""
     body = client.get("/findings").text
-    assert body.index("Not allowed") < body.index("Unclear")
-    assert "1 not allowed" in body or "1 not allowed" in body.replace("\n", " ")
+    assert body.index("not allowed") < body.index("unclear")
 
 
 def test_verdicts_are_shown_in_plain_words(client):
     """A judge watching a video should not have to translate "unauthorized"."""
     body = client.get("/findings").text
-    assert "Not allowed" in body and "unauthorized" not in body
+    assert "not allowed" in body and "unauthorized" not in body
 
 
 def test_clearance_names_what_cannot_ship(client):
     body = client.get("/clearance").text
-    assert "Blocked" in body
+    assert "blocked" in body
     assert "cannot ship" in body
-    assert "Unchecked" in body
-    assert "nothing in the registry permits this" in body
+    assert "unchecked" in body
+    assert "Nothing in the registry permits this" in body
+
+
+def test_every_row_carries_its_own_detail(client):
+    """The detail panel is filled by moving nodes the server already rendered.
+    If a row shipped without its detail block the panel would open empty, and
+    nothing else on the page would look wrong."""
+    for path in ("/registry", "/findings", "/clearance"):
+        body = client.get(path).text
+        rows = body.count("data-drawer-title=")
+        assert rows > 0, path
+        assert body.count("data-drawer-body") == rows, path
+        assert 'src="/static/console.js"' in body
 
 
 # ------------------------------------------------------------------ escaping
@@ -184,6 +207,47 @@ def test_saving_a_slip_writes_it_and_reuses_the_performer(client):
     assert saved.performer_id == "p1", "should reuse the existing performer, not duplicate them"
     assert saved.territories == ["US", "CA"]
     assert saved.permitted_uses == [PermittedUse.VOICE_SYNTH]
+
+
+def test_checking_a_clip_writes_the_answer_and_returns_to_the_screen(client, monkeypatch):
+    """The inward direction, end to end through the app: a clip plus a delivery
+    note goes in, a row with a verdict comes out."""
+    from consentinel.agents.clearance import ClearanceOutcome
+    from consentinel.store.base import ClearanceState
+
+    monkeypatch.setattr(
+        webapp, "check_asset",
+        lambda **kw: ClearanceOutcome(
+            state=ClearanceState.BLOCKED, reasoning="nothing permits this",
+            content_hash="a" * 64, declared_modality="face"),
+    )
+
+    r = client.post(
+        "/clearance/check",
+        data={"performer_id": "p1", "licensee": "Halcyon Pictures", "modality": "face",
+              "territories": "US", "vendor": "Cyan Alley", "synthetic": "yes"},
+        files={"clip": ("plate.png", b"\x89PNG", "image/png")},
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 303
+    assert "/clearance" in r.headers["location"]
+    written = [a for a in client.store.assets if a.filename == "plate.png"]
+    assert len(written) == 1, "one row per delivery, keyed on the bytes and the shot"
+    assert written[0].clearance_state == ClearanceState.BLOCKED
+    assert written[0].vendor == "Cyan Alley"
+
+
+def test_a_clip_check_needs_the_key(monkeypatch):
+    """It costs a Gemini call, so it is gated like every other action."""
+    monkeypatch.setenv(security.ENV_VAR, "s3cret")
+    webapp.set_store(FakeStore())
+    c = TestClient(webapp.app)
+    r = c.post("/clearance/check",
+               data={"performer_id": "p1", "licensee": "X", "modality": "voice"},
+               files={"clip": ("a.wav", b"\x00", "audio/wav")})
+    assert r.status_code == 403
+    webapp.set_store(None)
 
 
 def test_an_unreadable_contract_says_so_rather_than_saving_nothing(client, monkeypatch):

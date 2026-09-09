@@ -1,13 +1,18 @@
 """The Consentinel web app.
 
-Three screens, all reading from Firestore:
+Four screens, all reading from Firestore:
 
-    /            Registry   - performers and the permission slips we hold
+    /            Overview   - the counts, both directions, recent activity
+    /registry    Registry   - performers and the permission slips we hold
     /findings    Findings   - what the sweep found, and whether it is allowed
     /clearance   Clearance  - our own film clips: fine to ship, blocked, or unchecked
 
+Two of them also act, and both cost a model call, so both are gated by a shared
+key (`web/security.py`): `POST /consents/extract` reads a contract, and
+`POST /clearance/check` checks a clip. Reads stay open so a judge can look.
+
 Deliberately plain. No login, no accounts, no build step. Everything a judge
-needs to see is on three pages that render on the server.
+needs to see renders on the server.
 
 One rule matters more than the others here: **every piece of text that came
 from someone else's website is escaped before it is shown.** Jinja does that by
@@ -18,6 +23,7 @@ a stranger's page run script inside our own app.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -31,8 +37,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from consentinel.agents.clearance import Declaration, check_asset, to_asset
+from consentinel.agents.clearance import PROMPT_VERSION as CLEARANCE_PROMPT_VERSION
 from consentinel.agents.consent_ingest import ConsentDraft, extract_consent, to_consent
 from consentinel.agents.consent_ingest import PROMPT_VERSION
+from consentinel.agents.query_planner import DEFAULT_LOCALES
 from consentinel.audit import FirestoreAudit
 from consentinel.cache import FirestoreCache
 from consentinel.harness.ports import HarnessDeps
@@ -166,8 +175,66 @@ def enum_value(value):
     return getattr(value, "value", value)
 
 
+# The console theme stamps a verdict rather than printing it: a rotated,
+# double-outlined block, the way a clearance department actually marks a file.
+# Same plain-English labels; only the presentation differs.
+#
+# The words inside a stamp stay plain and lower-case: plain because a viewer
+# should not have to translate "unauthorized", lower-case because that is how
+# the design draws them.
+VERDICT_STAMP = {
+    "authorized": ("teal", "allowed"),
+    "unauthorized": ("orange", "not allowed"),
+    "ambiguous": ("slate", "unclear"),
+    None: ("slate", "not checked"),
+}
+
+CLEARANCE_STAMP = {
+    "cleared": ("teal", "fine to ship"),
+    "blocked": ("orange", "blocked"),
+    "unverified": ("slate", "unchecked"),
+}
+
+
+def grant_state(consent) -> tuple[str, str]:
+    """Is this grant live, running out, or finished?
+
+    The registry screen leads with this because an expired grant looks exactly
+    like a valid one until someone checks the date — and a lapsed grant means
+    every use under it is now unauthorised.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    end = consent.valid_to
+    if end is None:
+        return ("active", "no end date")
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+    if end < now:
+        return ("expired", "expired")
+    if end - now < timedelta(days=90):
+        return ("expiring", "expiring soon")
+    return ("active", "active")
+
+
+def hostname(url: str) -> str:
+    """Just the host. A full URL wraps over three lines in a table cell and the
+    part a reader needs is the site."""
+    from urllib.parse import urlsplit
+
+    try:
+        return urlsplit(url).netloc or url
+    except Exception:
+        return url
+
+
 templates.env.filters["verdict_style"] = lambda v: style_for(VERDICT_STYLE, v)
 templates.env.filters["clearance_style"] = lambda v: style_for(CLEARANCE_STYLE, v)
+templates.env.filters["verdict_stamp"] = lambda v: style_for(VERDICT_STAMP, v)
+templates.env.filters["clearance_stamp"] = lambda v: style_for(CLEARANCE_STAMP, v)
+templates.env.filters["grant_state"] = grant_state
+templates.env.filters["hostname"] = hostname
 templates.env.filters["ev"] = enum_value
 
 
@@ -186,7 +253,84 @@ def healthz() -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+def _can_act(k: Optional[str]) -> bool:
+    """Should this screen offer the buttons that spend money?
+
+    Yes when no token is configured — a laptop — and yes when the supplied key
+    matches. Never merely because a key was supplied.
+    """
+    return security.allows(k)
+
+
+def _qs(k: Optional[str]) -> str:
+    """The action key, carried between pages so the nav link survives a click."""
+    return f"?k={k}" if k else ""
+
+
 @app.get("/", response_class=HTMLResponse)
+def overview(request: Request, k: Optional[str] = None):
+    """The console front page.
+
+    Every number here is counted from Firestore rather than written in. A
+    dashboard with invented figures is worse than no dashboard: it is the first
+    thing a viewer trusts and the first thing that makes them stop trusting the
+    rest.
+    """
+    store = get_store()
+    performers = {p.id: p for p in store.list_performers()}
+    consents = [c for pid in performers for c in store.list_consents(pid)]
+    findings = store.list_findings()
+    assets = store.list_assets(os.environ.get("CONSENTINEL_DEMO_PRODUCTION", "prod_halcyon_nightfall"))
+
+    live = [c for c in consents if grant_state(c)[0] != "expired"]
+    open_findings = [f for f in findings if enum_value(f.verdict) == "unauthorized"]
+
+    stats = {
+        "grants": len(live),
+        "open_findings": len(open_findings),
+        "assets_checked": sum(1 for a in assets if enum_value(a.clearance_state) != "unverified"),
+        # The sweep's own locale list, not a count of what the findings happen
+        # to contain. Counting findings made this tile read "2" while the
+        # planner searches five languages, which understates the thing and
+        # invites the question of which number is real.
+        "languages": len({loc.language for loc in DEFAULT_LOCALES}),
+    }
+
+    # Recent activity mixes both directions, worst first, because a breach is
+    # what a reader needs to see before anything else.
+    activity = []
+    for f in sorted(findings, key=lambda f: ({"unauthorized": 0, "ambiguous": 1}.get(enum_value(f.verdict), 2), f.id)):
+        stamp, label = style_for(VERDICT_STAMP, f.verdict)
+        performer = performers.get(f.performer_id)
+        activity.append({
+            "title": hostname(f.url),
+            "subtitle": (f.modality and f"synthetic {enum_value(f.modality)} offering") or "web finding",
+            "direction": "enforcement", "direction_class": "expiring",
+            "detail": f"{performer.name if performer else f.performer_id}"
+                      + (" — no matching grant" if not f.matched_consent_id else ""),
+            "stamp": label, "stamp_class": stamp, "href": "/findings",
+        })
+    for a in assets:
+        if enum_value(a.clearance_state) == "cleared":
+            continue          # the front page leads with what needs attention
+        stamp, label = style_for(CLEARANCE_STAMP, a.clearance_state)
+        activity.append({
+            "title": a.filename,
+            "subtitle": f"{a.vendor or 'vendor not recorded'}, {a.shot_code or 'no shot code'}",
+            "direction": "clearance", "direction_class": "active",
+            "detail": a.reasoning or "",
+            "stamp": label, "stamp_class": stamp, "href": "/clearance",
+        })
+
+    return templates.TemplateResponse(
+        request,
+        "overview.html",
+        {"nav": "overview", "k": k or "", "q": _qs(k), "can_act": _can_act(k),
+         "stats": stats, "activity": activity[:6]},
+    )
+
+
+@app.get("/registry", response_class=HTMLResponse)
 def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = None):
     store = get_store()
     rows = []
@@ -195,7 +339,8 @@ def registry(request: Request, k: Optional[str] = None, saved: Optional[str] = N
     return templates.TemplateResponse(
         request,
         "registry.html",
-        {"rows": rows, "nav": "registry", "k": k or "", "saved": saved},
+        {"rows": rows, "nav": "registry", "k": k or "", "q": _qs(k),
+         "can_act": _can_act(k), "saved": saved},
     )
 
 
@@ -234,19 +379,22 @@ def findings(request: Request, k: Optional[str] = None):
             "counts": counts,
             "nav": "findings",
             "k": k or "",
+            "q": _qs(k),
+            "can_act": _can_act(k),
         },
     )
 
 
 @app.get("/clearance", response_class=HTMLResponse)
-def clearance(request: Request, k: Optional[str] = None):
+def clearance(request: Request, k: Optional[str] = None, checked: Optional[str] = None):
     store = get_store()
     production = os.environ.get("CONSENTINEL_DEMO_PRODUCTION", "prod_halcyon_nightfall")
     assets = sorted(store.list_assets(production), key=lambda a: a.id)
 
+    performers = {p.id: p for p in store.list_performers()}
     consents: dict[str, object] = {}
-    for p in store.list_performers():
-        for c in store.list_consents(p.id):
+    for pid in performers:
+        for c in store.list_consents(pid):
             consents[c.id] = c
 
     blockers = [a for a in assets if enum_value(a.clearance_state) == "blocked"]
@@ -258,11 +406,20 @@ def clearance(request: Request, k: Optional[str] = None):
         {
             "production": production,
             "assets": assets,
+            "performers": performers,
             "consents": consents,
             "blockers": blockers,
             "unchecked": unchecked,
             "nav": "clearance",
             "k": k or "",
+            "q": _qs(k),
+            "can_act": _can_act(k),
+            # For the submit form: which studios hold a grant. Offering a
+            # free-text performer instead of the ones on file would let a typo
+            # produce a permanent `unverified` nobody can explain.
+            "licensees": sorted({c.licensee for c in consents.values() if c.licensee}),
+            "checked": checked,
+            "just_checked": next((a for a in assets if a.id == checked), None),
         },
     )
 
@@ -279,7 +436,9 @@ def clearance(request: Request, k: Optional[str] = None):
 def consent_new(request: Request, k: Optional[str] = None):
     security.check(k)
     return templates.TemplateResponse(
-        request, "consent_new.html", {"nav": "registry", "k": k or ""}
+        request,
+        "consent_new.html",
+        {"nav": "registry", "k": k or "", "q": _qs(k), "can_act": _can_act(k)},
     )
 
 
@@ -325,6 +484,8 @@ async def consent_extract(
             {
                 "nav": "registry",
                 "k": k or "",
+                "q": _qs(k),
+                "can_act": _can_act(k),
                 "error": result.reason,
                 "fail_state": enum_value(result.fail_state),
             },
@@ -352,6 +513,8 @@ async def consent_extract(
         {
             "nav": "registry",
             "k": k or "",
+            "q": _qs(k),
+            "can_act": _can_act(k),
             "draft": result.value,
             "filename": contract.filename,
             "result": result,
@@ -404,5 +567,94 @@ def consent_save(
     )
     store.upsert_consent(consent)
 
-    sep = "?" if not k else f"?k={k}&"
-    return RedirectResponse(url=f"/{sep}saved={consent.id}".replace("?&", "?"), status_code=303)
+    sep = f"?k={k}&" if k else "?"
+    return RedirectResponse(url=f"/registry{sep}saved={consent.id}", status_code=303)
+
+
+# ------------------------------------------------------ checking our own clip
+#
+# The other direction, and the same gate: reading a clip costs a Gemini call.
+#
+# Everything the rule engine needs about our own footage is on the delivery
+# note, so the form asks for it rather than making a model guess at facts the
+# submitter already knows. What the model is for is the one thing the note
+# cannot establish: whether the file actually contains what the note says.
+
+
+@app.post("/clearance/check")
+async def clearance_check(
+    clip: UploadFile = File(...),
+    k: Optional[str] = Form(None),
+    performer_id: str = Form(...),
+    licensee: str = Form(...),
+    modality: str = Form(...),
+    territories: str = Form(""),
+    vendor: str = Form(""),
+    invoice_ref: str = Form(""),
+    shot_code: str = Form(""),
+    synthetic: str = Form("unknown"),
+):
+    """Check one clip and write the answer. Never raises on a bad file — every
+    failure lands as `unverified`, because a crash read as a pass is the one
+    outcome this screen must not produce."""
+    security.check(k)
+    store = get_store()
+
+    data = await clip.read()
+    filename = Path(clip.filename or "clip").name
+    production = os.environ.get("CONSENTINEL_DEMO_PRODUCTION", "prod_halcyon_nightfall")
+
+    declaration = Declaration(
+        performer_id=performer_id,
+        licensee=licensee.strip(),
+        modality=modality.strip().lower(),
+        territories=tuple(t.strip().upper() for t in territories.split(",") if t.strip()),
+        vendor=vendor.strip() or None,
+        invoice_ref=invoice_ref.strip() or None,
+        shot_code=shot_code.strip() or None,
+        production_id=production,
+        synthetic=synthetic if synthetic in ("yes", "no", "unknown") else "unknown",
+    )
+
+    consents = [c for p in store.list_performers() for c in store.list_consents(p.id)]
+
+    outcome = check_asset(
+        data=data,
+        filename=filename,
+        mime_type=clip.content_type or "",
+        declaration=declaration,
+        consents=consents,
+        deps=HarnessDeps(
+            audit=get_audit(),
+            cache=get_cache(),
+            armor=get_armor(),
+            tracer=tracer,
+            metrics=metrics,
+            prompt_version=CLEARANCE_PROMPT_VERSION,
+        ),
+    )
+
+    # Keyed on the file's bytes *and* the shot it was submitted as. The bytes
+    # alone are not enough: the same master can be delivered for two markets,
+    # and hashing only the file would let the second delivery quietly overwrite
+    # the first one's answer. Keeping the shot in the key also gives us the
+    # thing the demo needs — re-check the same delivery after adding a
+    # permission slip and the row updates rather than doubling.
+    row_key = hashlib.sha256(
+        f"{outcome.content_hash}:{declaration.shot_code or filename}".encode()
+    ).hexdigest()[:12]
+    asset = to_asset(outcome, declaration, asset_id=f"asset_{row_key}", filename=filename)
+    store.upsert_asset(asset)
+
+    trace_id, span_id = tracer.current_ids()
+    log.info("checked a clip",
+             filename=filename, state=enum_value(outcome.state), check=outcome.check,
+             declared=outcome.declared_modality, perceived=outcome.perceived_modality,
+             matched_consent_id=outcome.matched_consent_id,
+             from_cache=outcome.read_from_cache,
+             armor=describe_armor(get_armor()),
+             trace_id=trace_id, span_id=span_id)
+    metrics.counter("clearance.checked", state=enum_value(outcome.state) or "unknown")
+
+    sep = f"?k={k}&" if k else "?"
+    return RedirectResponse(url=f"/clearance{sep}checked={asset.id}", status_code=303)

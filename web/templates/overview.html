@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Overview — Consentinel{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="hero-content">
+    <p class="eyebrow">AGENCY CONSOLE</p>
+    <h1>One registry, two directions.</h1>
+    <p>Every permission slip your clients have signed, in one place &mdash; watched outward for people
+       using their likeness without one, and checked inward against anything your studio partners
+       want to ship.</p>
+    {% if can_act %}
+      <a class="btn" href="/consents/new{{ q }}">+ Add permission slip</a>
+    {% else %}
+      <a class="btn ghost" href="/registry">Browse the registry</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="main-inner">
+
+  <div class="stats">
+    <div class="stat"><span class="num">{{ stats.grants }}</span><span class="lbl">Active permission slips</span></div>
+    <div class="stat orange"><span class="num">{{ stats.open_findings }}</span><span class="lbl">Open findings</span></div>
+    <div class="stat teal"><span class="num">{{ stats.assets_checked }}</span><span class="lbl">Assets checked before release</span></div>
+    <div class="stat"><span class="num">{{ stats.languages }}</span><span class="lbl">Languages under sweep</span></div>
+  </div>
+
+  <div class="directions">
+    <a class="dir-card out" href="/findings{{ q }}">
+      <h3>Enforcement <span class="tag">outward</span></h3>
+      <p>Who is using your clients' face or voice without a signed grant? We sweep text, audio, video
+         and image sources in five languages and build the case file &mdash; you decide what happens
+         next.</p>
+    </a>
+    <a class="dir-card in" href="/clearance{{ q }}">
+      <h3>Clearance <span class="tag">inward</span></h3>
+      <p>Before a studio partner ships a scene, an ad, or a dub &mdash; check it against the registry.
+         Cleared, blocked, or unverified. Nothing defaults to cleared.</p>
+    </a>
+  </div>
+
+  <h4 class="section-label">Recent activity</h4>
+  <div class="register">
+    <div class="reg-row head">
+      <div>Item</div><div>Direction</div><div>Detail</div><div>Status</div><div></div>
+    </div>
+
+    {% for row in activity %}
+      <a class="reg-row" href="{{ row.href }}{{ q }}">
+        <div class="primary">{{ row.title }}<span class="sub">{{ row.subtitle }}</span></div>
+        <div><span class="badge {{ row.direction_class }}"><span class="dot"></span>{{ row.direction }}</span></div>
+        <div>{{ row.detail }}</div>
+        <div><span class="stamp {{ row.stamp_class }}">{{ row.stamp }}</span></div>
+        <div></div>
+      </a>
+    {% else %}
+      <div class="reg-row"><div class="primary">Nothing recorded yet<span class="sub">Run a sweep or add a permission slip</span></div><div></div><div></div><div></div><div></div></div>
+    {% endfor %}
+  </div>
+
+  <p class="disclaimer">Demo data. Mira Vance, Halcyon Pictures and every result here are invented
+     &mdash; no real person's name, face or voice appears anywhere in this application.</p>
+</div>
+{% endblock %}

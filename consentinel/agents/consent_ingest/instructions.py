@@ -73,3 +73,36 @@ Rules you must follow:
     number it appears on. Do not paraphrase, tidy, or shorten the sentence.
   * If you cannot find a field, leave it empty and add no citation for it.
 """
+
+
+# --------------------------------------------------------------------------
+# The same shape, as a Pydantic model
+# --------------------------------------------------------------------------
+#
+# ADK's `LlmAgent` will not take a JSON Schema dict — it insists the response
+# shape arrive as `output_schema`, a Pydantic model. So the deployed agent
+# (WU-24) needs this second expression of `RESPONSE_SCHEMA` above.
+#
+# Two definitions of one shape is a thing that drifts, so there is a test that
+# fails if their field names stop matching. Fix the mismatch rather than the
+# test: the dict is what the app's own Gemini call uses, and the model is what
+# runs on Agent Engine. They must ask for the same answer.
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class Citation(BaseModel):
+    field: str = Field(description="which field this sentence supports")
+    quote: str = Field(description="the sentence from the contract, copied character for character")
+    page: int = Field(description="the page the sentence appears on, 1-based")
+
+
+class ConsentOut(BaseModel):
+    performer_name: str = ""
+    licensee: str = ""
+    permitted_uses: list[str] = []
+    territories: list[str] = []
+    valid_from: str = ""
+    valid_to: str = ""
+    compensation_trigger: str = ""
+    citations: list[Citation] = []

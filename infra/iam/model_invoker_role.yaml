@@ -1,10 +1,22 @@
-# The narrowest role that lets a service call a Gemini model.
+# The narrowest role that lets a service call a Gemini model, and lets an Agent
+# Engine runtime hold a conversation.
 #
 # roles/aiplatform.user would work, but it also grants training jobs, endpoint
-# management, datasets, pipelines and more. The web app needs exactly one verb:
-# ask a published model for a prediction. So that is the only permission here.
+# management, datasets, pipelines and more.
+#
+# The session permissions are here because of a failure that is easy to
+# misread: a runtime deploys, starts, and then every call returns
+# 403 `aiplatform.sessions.create` denied — on its own resource. An Agent
+# Engine runtime opens the session as *itself*, so its own service account
+# needs these. Without them the deployment looks healthy and answers nothing.
 title: "Consentinel model invoker"
-description: "Call a published Gemini model. Nothing else on Vertex AI."
+description: "Call a published Gemini model, and run as an Agent Engine runtime. Nothing else on Vertex AI."
 stage: "GA"
 includedPermissions:
   - aiplatform.endpoints.predict
+  - aiplatform.sessions.create
+  - aiplatform.sessions.get
+  - aiplatform.sessions.list
+  - aiplatform.sessions.run
+  - aiplatform.sessionEvents.append
+  - aiplatform.sessionEvents.list
