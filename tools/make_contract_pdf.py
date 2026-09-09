@@ -84,20 +84,20 @@ def build() -> Path:
     f += [
         P("PERFORMER ENGAGEMENT AND DIGITAL REPLICATION AGREEMENT", "title"),
         P(f"This Agreement is made as of 1 January 2026 between {PRODUCER} (the "
-          f"&ldquo;Producer&rdquo;) and {ARTIST} (the &ldquo;Artist&rdquo;), represented by {AGENCY}."),
+          f"&quot;Producer&quot;) and {ARTIST} (the &quot;Artist&quot;), represented by {AGENCY}."),
         P("1. RECITALS", "h"),
         P(f"Producer is engaged in the production of the theatrical motion picture presently "
-          f"entitled &ldquo;{PICTURE}&rdquo; (the &ldquo;Picture&rdquo;). Artist is a professional "
+          f"entitled &quot;{PICTURE}&quot; (the &quot;Picture&quot;). Artist is a professional "
           f"performer whose name, voice and likeness have independent commercial value. The parties "
           f"wish to record the terms on which Artist renders services and the limited terms on which "
           f"Producer may create and use a digital replica of Artist."),
         P("2. DEFINITIONS", "h"),
-        P("&ldquo;Digital Replica&rdquo; means any computer-generated reproduction of the Artist's "
+        P("&quot;Digital Replica&quot; means any computer-generated reproduction of the Artist's "
           "voice, visual likeness, or performance, however created, including by machine learning or "
           "other generative means."),
-        P("&ldquo;Synthetic Voice Performance&rdquo; means audio in which the Artist's voice is "
+        P("&quot;Synthetic Voice Performance&quot; means audio in which the Artist's voice is "
           "reproduced or generated other than by the Artist's contemporaneous performance."),
-        P("&ldquo;Territory&rdquo; means, except where this Agreement provides otherwise, the "
+        P("&quot;Territory&quot; means, except where this Agreement provides otherwise, the "
           "United States and Canada."),
         PageBreak(),
     ]
@@ -106,7 +106,7 @@ def build() -> Path:
     f += [
         P("3. ENGAGEMENT", "h"),
         P("Producer engages Artist to render principal photography services in the role of "
-          "&ldquo;Della Reyes&rdquo; in the Picture, on the dates set out in Schedule A, subject to "
+          "&quot;Della Reyes&quot; in the Picture, on the dates set out in Schedule A, subject to "
           "the standard terms of the applicable collective bargaining agreement."),
         P("4. TERM", "h"),
         P("The rights granted under this Agreement commence on 1 January 2026 and expire on "

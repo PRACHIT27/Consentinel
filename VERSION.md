@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.0.11`**
+**Doc set version: `v3.2.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,44 @@ commit.
 # Log
 
 Newest first.
+
+## v3.2.0 - 2026-09-09 - Vedant (with Claude)
+**Files:** `VERSION.md`, `CLAUDE.md` (status), `requirements.txt`
+**Type:** MINOR - the agent side of the pipeline lands on this branch
+
+**Merged `main` into `epic/2-web-discovery`.** Prachit's 27 commits (WU-03, WU-18, WU-19, WU-21,
+WU-22, WU-23, WU-25, WU-30, WU-34) now sit under my 18 (WU-04 through WU-16, WU-20, WU-31, WU-35's
+media half). One conflict, in this file.
+
+**About the numbering, and then I will stop mentioning it.** The block immediately below numbers
+v2.0.1-v2.0.11: those are mine, written while Prachit was independently at v3.x. They sit above his
+v3.1.1 by insertion order rather than by number. I renumbered my entries twice already today and am
+not doing it a third time with hours left - the content is what a teammate reads.
+
+**Two things his work replaces in mine:**
+
+- **`consentinel/cache/` (WU-19) is the real cache, and `tools/warm_demo_cache.py` now uses it.**
+  `--cache auto` (the default) opens `FirestoreCache` and falls back to the old local JSON file only
+  if that fails; `--cache file` forces the local one for a laptop dry-run. This matters more than it
+  sounds: **Cloud Run cannot read a JSON file on your laptop**, so a locally-warmed cache does
+  nothing for the hosted demo. Verified against the live project — `--check --cache=auto` reports
+  `0 hits, 8 misses (Firestore)`, so the cache is reachable with current ADC. His `CacheEntry` drops
+  into `HarnessDeps(cache=...)` unchanged, which is what the ports existed for.
+- `requirements.txt` had `google-cloud-firestore` twice after the auto-merge, once from each of us.
+  Deduplicated.
+
+**One inconsistency worth someone's attention:** `consentinel/cache/keys.py` now has its own
+`normalise_url`, and `consentinel/agents/text_sweep.py` has one too. Mine decides a **finding's
+identity** (FR-2.5 dedupe); his decides a **cache key**. Two different jobs, so two functions is not
+automatically wrong - but if they disagree about `www.` or a trailing slash, the UI and the registry
+will disagree about whether two URLs are the same page. Left alone rather than "fixed" across a lane
+boundary; flagged for a decision.
+
+**Action required:**
+- **Prachit:** read the note above about the two `normalise_url` functions and decide which one the
+  UI should import
+- **Still open, and now urgent:** the Parallel API key (nothing has run live), the Web Risk API on
+  the project, OQ-6, and this branch's PR
 
 ## v2.0.11 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `consentinel/agents/`
@@ -682,6 +720,388 @@ so a fresh clone saw 23 tests, not 36.
   `ParallelSearch.search_detailed(...)` if you need attempts or cache age for a partial-sweep
   report. Check `is_degraded` before treating an empty result set as "nothing out there"
 - Everyone: `pip install -r requirements.txt` again to pick up `google-cloud-firestore`
+## v3.1.1 - 2026-09-09 - Prachit (with Claude)
+**Files:** `web/app.py`
+**Type:** PATCH
+
+**The web app was never emitting a span or a metric, and that explains the missing traces.**
+
+The WU-30 wiring looked applied but was not: the edit that adds `tracer` and `metrics` to
+`HarnessDeps` silently failed to match, and the script that made it printed success unconditionally.
+So the app ran with the no-op tracer and metrics sink the whole time.
+
+Which resolves the open question from v3.1.0. The traces were not lagging and it was not a missing
+IAM role - **nothing was being sent.** A separate standalone export in that session did flush spans
+directly, so whether *that* one landed is still unknown, but the app path was definitively silent.
+
+Now verified on a real contract read:
+
+```
+span     agent.consent_ingest
+metrics  agent.runs{agent=consent_ingest,outcome=ok} = 1
+         agent.duration_seconds{agent=consent_ingest} mean 9.78
+log      read a contract  pages=6 citations=8 dropped=0 from_cache=false
+```
+
+The log line carries page count, citation count and timing, and no page content - which is the rule
+holding under a real call rather than only under test.
+
+Two process notes worth keeping:
+- A script that reports success without checking whether its replacement matched is worse than one
+  that fails, because it produces a false record. Verify the file, not the script's own output.
+- This was edited on `main` first, where `consentinel/obs/` does not exist because WU-30 is still
+  unmerged, so the import failed. Check the branch before editing.
+## v3.1.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/obs/`
+**Type:** MINOR
+
+**WU-30 is done. Epic 8 closed. 119 tests.** All three signals reach agents through the harness, so
+an agent author gets them without writing a line.
+
+**Logs.** One JSON object per line on stdout, which Cloud Run turns into an indexed Cloud Logging
+entry with no client library and no credentials. Lines carry the trace id, which is what makes a log
+line clickable from a trace in the console.
+
+**The rule that matters: page content never goes in a log.** Not the text, not a quote, not the
+model's answer about it. It is attacker-controlled, it may carry personal data, and logs are
+retained and widely readable. `NEVER_LOG` holds the field names that are refused - `text`,
+`page_text`, `quote`, `evidence_quote`, `prompt`, `transcript`, `draft_notice`, `reasoning` and
+more - and each is replaced by a description: byte count and a short hash. That is enough to tell
+two pages apart and spot an empty one, without ever storing what they said. Nested fields are
+stripped too.
+
+**Metrics as log lines, not time series - a deliberate trade.** Custom time series need a metric
+descriptor each, resource labels, and a write quota that rejects more than one point per series per
+interval, which a sweep hitting the same counter repeatedly would trip. Log-based metrics are a
+first-class Cloud Monitoring feature: emit a structured line, define the aggregation once. Every
+line carries `metric`, `kind`, `value` and its labels. A mistyped metric name logs a warning rather
+than silently never appearing on a dashboard.
+
+The two worth showing: `extraction.validation_failures{reason}` is the guardrails' own telemetry -
+non-zero means the model tried to fabricate a citation and was caught - and
+`model_armor.detections{type}`.
+
+**Traces.** One per sweep, with a span for the sweep, each agent, each tool and each candidate.
+Attributes set *during* a call are kept, because the harness fills in the verdict and cache age
+mid-span. `tracer_for()` picks Cloud Trace when a project is configured and an in-memory recorder
+otherwise, so a laptop and a test need no credentials and deploy needs no flag. The in-memory one
+also prints the span tree, which is how you notice triage ran nine times when you expected four.
+
+**Not yet verified end to end:** a test export flushed to Cloud Trace without error, but the spans
+were not visible through the trace API within ten minutes. Ingestion lag is the likely cause and a
+background check is running. Treat "traces appear in the console" as unconfirmed until someone sees
+one.
+
+**Action required:**
+- Vedant: pass `tracer=tracer_for()` and `metrics=Metrics(JsonLogger())` in `HarnessDeps`. Do not
+  log page text - use the field names in `NEVER_LOG` and it is handled for you
+## v3.0.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `consentinel/store/base.py` (bug fix), plus `consentinel/cache/` and `infra/firestore/`
+**Type:** MAJOR - a frozen-contract file changed, though the interface did not
+
+**WU-19 is done. 104 tests.** Two regimes, kept apart because conflating them is the bug.
+
+- **Content-addressed, no expiry.** The hash is the key, so the answer cannot go stale. Contract
+  text, media inspection, transcripts.
+- **TTL, because the web moves.** Search and page fetches expire, and their keys carry `locale`.
+
+**What it actually buys, measured:** reading the same contract twice went from **12.75s to 0.08s**,
+and one model call became zero. Cache stats confirmed one hit, one miss.
+
+Small entries live in a Firestore `cache` collection; anything over 100 KB goes to Cloud Storage,
+because Firestore documents cap at 1 MiB and page text gets close. Both are shared across Cloud Run
+containers - an in-process cache is useless when the next request lands on a different instance -
+and a warm cache now survives a redeploy, which is what lets `DEMO_MODE` record without a network.
+
+`infra/firestore/01_cache_ttl.sh` enables Firestore's native TTL on `expires_at`, so expired
+documents are deleted by policy rather than by a cron job we would have to write and watch.
+
+**Frozen-contract bug fixed.** `CacheEntry.age_seconds()` used `datetime.utcnow()`, which is naive,
+while Firestore returns aware timestamps. Every cache hit therefore raised
+`TypeError: can't subtract offset-naive and offset-aware datetimes` - and because the harness
+converts an exception into a fail state, it surfaced as *every cached call failing* rather than as
+anything resembling a clock problem. Both sides are now made aware before subtracting. The
+signature is unchanged, so nothing needs updating; marked MAJOR only because the file is governed.
+
+**Two behaviours worth knowing:**
+- An entry past its time is treated as gone even though the document is still there. Firestore's
+  sweep is not instant, and serving stale data would be worse than a miss.
+- A missing blob is a miss, not an error. A cache that raises is worse than a cache that misses,
+  because the caller can always recompute.
+
+**Action required:**
+- Vedant: `FirestoreCache` satisfies the harness `CachePort`, so pass it in `HarnessDeps` and step 3
+  starts working. Use `web_key(..., locale=...)` for search and page fetches - the locale is not
+  optional in practice, and leaving it out corrupts territory answers quietly rather than loudly
+- WU-20 `DEMO_MODE` is unblocked
+## v2.7.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/audit.py` and the web app
+**Type:** MINOR
+
+**WU-18 is done. Epic 7 closed. 90 tests.** The trail is real now, not a no-op port.
+
+`consentinel/audit.py` gives the harness a working `AuditPort`, so every agent run leaves a
+permanent row without the agent author doing anything - they never call it, which is the point.
+Verified against real Firestore: two rows written, read back in order, with the cache age intact.
+
+Three properties it exists to hold:
+
+- **Append-only.** There is no update or delete, on the store or on the audit object. A test asserts
+  those attributes are *absent*, so adding one later fails loudly.
+- **It says how old its inputs were.** Every tool call carries `from_cache` and `cache_age_s`.
+  Claiming we checked the web at 3pm when the answer came from a 9am cache is the quiet dishonesty
+  that makes a trail worthless.
+- **A gap means we did not run.** Rows are written on failure too. A sweep that found nothing has a
+  row saying so; a sweep that never happened has none. Those must never look the same.
+
+`audit.tool(...)` is a context manager that times a call and records it **even when it raises** - a
+tool that failed is part of why a decision came out the way it did.
+
+**Bug found while testing:** the first id scheme was a millisecond timestamp plus a random tail.
+Three rows written in the same millisecond then sorted by their random part, which is not the order
+they happened in. Ids now carry microseconds, a process-local counter, and a random tail: the
+timestamp orders across processes, the counter within one, the tail prevents collisions. Verified
+with 500 writes in a tight loop.
+
+The upload screen now passes the audit port into `extract_consent`, so reading a contract on the
+live site leaves a trail.
+
+**Action required:**
+- Vedant: pass `HarnessDeps(audit=FirestoreAudit(store), ...)` when you construct a harness, and use
+  `audit.tool(...)` around `parallel_search` and `fetch_page`. That is what makes the call log in
+  WU-37 a real artefact rather than a screenshot of stdout
+## v2.6.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md`, plus `infra/iam/`
+**Type:** MINOR
+
+**WU-34 is done, and one claim we were about to make turned out to be false.**
+
+**Least privilege restored.** `roles/aiplatform.user` has been removed from `consentinel-web@`.
+The earlier failure was IAM propagation, not an insufficient role - waiting 90 seconds and cycling
+the instances made the single-permission custom role work on its own. `consentinel-web@` now holds
+exactly two things: `roles/datastore.user` and `consentinelModelInvoker`, whose entire content is
+`aiplatform.endpoints.predict`. Verified live: the contract reads in 9 seconds.
+
+**Six service accounts** created by `infra/iam/01_service_accounts.sh`. Worth noting which ends up
+weakest: `consentinel-triage`, the one component that reads attacker-controlled pages. It gets the
+model permission and **Firestore read-only**, and nothing else - no secrets, no storage, no writes.
+
+**Three buckets** by `infra/iam/02_buckets.sh`. Evidence is versioned and write-once, uploads are
+normal, derived expires after 7 days because everything in it is regenerable.
+
+**The correction.** We were going to say "no principal in the system can delete evidence", on the
+strength of granting `objectCreator` rather than `objectAdmin`. That is **not true from IAM**. The
+bucket carries legacy `projectOwner` and `projectEditor` bindings that include object deletion, so
+both of us could delete evidence - and a bucket retention period did not stop it either. A project
+owner deleted a fresh object twice, and objects were not picking up a retention expiry at all.
+
+What does work is a **default event-based hold** on the bucket. Every new object arrives held, and a
+held object refuses deletion explicitly:
+
+```
+403: Object is under active Event-Based hold and cannot be deleted,
+     overwritten or archived until hold is removed
+```
+
+Tested as project owner, which is the most privileged identity we have. `02_buckets.sh` now ends
+with a self-test that writes an object, tries to delete it, and fails loudly if the delete succeeds -
+so this cannot quietly regress.
+
+Holds are also the reversible choice. Locking a retention policy is permanent: it cannot be
+shortened or removed and the bucket cannot be deleted until every object ages out. A hold can be
+released deliberately.
+
+**For the demo:** the line to say is "evidence is held on write, and a project owner cannot delete
+it" - and you can show the 403. Do not say "IAM prevents deletion", because it does not.
+
+**Action required:**
+- The one honest caveat left: `consentinel-web@` can still call a model, because `consent_ingest`
+  runs in-process until Agent Runtime exists (WU-24). Everything else is as designed
+## v2.5.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md`, plus `infra/iam/model_invoker_role.yaml` and the deployed service
+**Type:** MINOR
+
+**Reading a contract now works on the live URL.** 9.3 seconds end to end: performer, licensee,
+US and CA, the 2026-2028 term, 8 quotes across 6 pages, `voice_synth` and `archival_reuse` ticked,
+`face_replace` correctly left unticked.
+
+**Action gating is live.** `CONSENTINEL_ACTION_TOKEN` is mounted from Secret Manager
+(`consentinel-action-token`), readable only by `consentinel-web@`. Verified on the deployed service:
+the three read screens return 200 with no key; `/consents/new` and `/consents/extract` return 403
+with no key and 403 with a wrong key.
+
+**Two things that are honestly not as designed, and should not be claimed otherwise.**
+
+1. **The web app now holds `roles/aiplatform.user`.** `DESIGN.md` Part II section 3 says Gemini
+   calls belong to `cn-ingest` and the web app should hold no model permission at all. That is still
+   the right design, but Agent Runtime does not exist yet, so `extract_consent` runs in-process
+   inside the Cloud Run container and the container therefore needs to call Gemini. **Do not claim
+   in the demo that the web app cannot reach a model — right now it can.** The fix is WU-24, not an
+   IAM change.
+2. **A single-permission custom role did not work on its own.** `infra/iam/model_invoker_role.yaml`
+   grants only `aiplatform.endpoints.predict`, which should be enough to call a published model. It
+   was still refused after binding and after cycling the instances, so `roles/aiplatform.user` was
+   added on top. Unresolved whether that was IAM propagation, a cached token, or the custom role
+   genuinely being insufficient for publisher models. The custom role is still bound and the file is
+   committed - worth narrowing back to it after the deadline rather than now.
+
+**The failure was well-behaved, which is worth noting.** The missing permission surfaced as a 422
+with a readable message on the upload screen, not a crash or a blank page, and nothing was written.
+That is the fail-safe path in DESIGN.md Part I section 0 doing its job on a real error.
+
+**Action required:**
+- Prachit: WU-34 should narrow this back once Agent Runtime exists. Until then the IAM story in the
+  demo has one honest caveat
+## v2.4.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `web/` upload and confirm screens
+**Type:** MINOR
+
+**The contract reader now has a way in from the UI.** Upload a PDF, see what Gemini read with every
+quote beside the field it supports, correct anything wrong, then save. Verified end to end against
+the real contract: performer, licensee, US and CA, the 2026-2028 term, the payment trigger, 6 pages,
+8 quotes, `voice_synth` and `archival_reuse` ticked and `face_replace` correctly left unticked. 80
+tests.
+
+**Actions are now gated; reads are not.** `web/security.py`. The three screens stay public because a
+judge has to be able to open the URL, but reading a contract is a Gemini call and a sweep is a
+Gemini call plus a Parallel call per query. On a public address with no gate a crawler can drain the
+quota we need for the demo. The key travels as `?k=` and as a hidden form field. It is a shared
+secret, not a login - it stops casual and accidental use, and should not be mistaken for identity.
+
+**Two parts of WU-23 were deliberately not built**, because both would have been empty shells:
+- the decision trail needs audit rows, and WU-18 has not been built, so the seeded findings have none
+- the case file needs WU-16, which is Vedant's and not started
+The clearance board part already existed on the `/clearance` screen.
+
+**Known cosmetic point, left alone on purpose:** the citation shown is the model's transcription
+rather than the document's own characters - Gemini returns curly quotes where the page has straight
+ones. It renders correctly in a browser and the text is verbatim-equivalent. Snapping each quote
+back to the page's exact bytes needs a normalised-to-original index map, which is not worth the
+hours today.
+
+**Action required:**
+- Set `CONSENTINEL_ACTION_TOKEN` on the Cloud Run service before the demo, or the upload screen is
+  open to the internet
+- Vedant: `agents/common/gemini.py` has `generate_json`. Use it rather than building a client - and
+  note the client must be held in a module global or it closes mid-request
+
+## v2.3.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md`, plus `consentinel/agents/` restructured
+**Type:** MINOR
+
+**Vedant: follow this layout for your agents.** `consent_ingest` was one 350-line file holding the
+prompt, the schema, the guardrails, the policy and the logic. Split into the shape GridMind uses,
+because six more agents are about to be written and the pattern should be right before they are.
+
+```
+agents/common/gemini.py     the only place we call a model
+agents/<agent>/agent.py     the steps and the HarnessPolicy
+agents/<agent>/guardrail.py what can reject an answer
+agents/<agent>/instructions.py  the prompt, the schema, PROMPT_VERSION
+```
+
+- Prompts change far more often than code, so a wording tweak is now a one-file diff, and
+  `PROMPT_VERSION` sits beside the words it versions.
+- `guardrail.py` is the security surface of a step. A reviewer asking what stops a fabricated
+  citation should find one short file.
+- One `generate_json` in `agents/common/gemini.py` means the untrusted-content fence is drawn once
+  rather than in every agent. No free-text variant exists on purpose.
+- The package `__init__` re-exports everything, so callers and tests were unaffected.
+
+**Bug found and fixed during the move:** building the Gemini client inline as
+`_client().models.generate_content(...)` left nothing holding a reference, and it was closed while
+the request was in flight - "Cannot send a request, as the client has been closed." It is now a
+module-level cached client, which also stops auth being rebuilt on every call.
+
+78 tests pass.
+
+## v2.2.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `consentinel/agents/consent_ingest.py`, `tools/make_contract_pdf.py`
+**Type:** MINOR
+
+**WU-03 is done. Gemini is now genuinely in the product. 78 tests passing.**
+
+Reading the demo contract: performer, licensee, US and CA, 2026-01-01 to 2028-12-31, the
+per-title payment trigger, and eight citations - each one checked verbatim against the page it
+claims. First attempt, no repair, 12.8 seconds.
+
+**The result that matters:** it granted `voice_synth` and `archival_reuse` and did **not** grant
+`face_replace`, because clause 10(a) withholds visual likeness. If it had read that withholding as
+a grant, the blocked clip in the clearance demo would turn green and the whole point would collapse.
+There is a live test asserting exactly that.
+
+**Two real findings while building it**
+
+- **A model re-typesets punctuation when it copies a sentence.** Gemini returned curly quotes for a
+  page that renders them straight, so the verbatim check rejected a citation that was in fact a
+  faithful copy - twice, including the repair attempt. `_norm` now folds quote and dash styling
+  alongside whitespace. Both are how characters are *drawn*, not what they *say*. Nothing looser is
+  tolerated, and a fabricated sentence still cannot match.
+- The contract PDF used HTML curly-quote entities, which extracted as replacement characters and
+  would have rendered as `?Territory?` on screen. Switched to `&quot;`.
+
+**Design notes**
+- Uncited fields are **dropped**, not kept. A permission record nobody can check is the thing this
+  step exists to prevent.
+- Nothing is written to the database. It returns a draft for a person to confirm, because a wrong
+  permission slip silently poisons every later answer.
+- A PDF with no readable text fails to `unverified` and says OCR is needed, rather than returning an
+  empty but successful record.
+
+**Action required:**
+- Prachit: WU-23 needs an upload form and a confirm screen for this draft. Until then the extractor
+  has no way in from the UI
+
+## v2.1.1 - 2026-09-08 - Prachit (with Claude)
+**Files:** `notion/stories.csv`, `notion/tasks.csv`
+**Type:** PATCH
+
+Statuses brought up to date, verified against main, the live URL and the open PRs.
+
+**8 of 61 stories done, 2 in progress. 7 of 38 tasks done - 16.5 of 85.5 hours, about 19%.**
+Prachit 6/13, Vedant 1/23, Swara 0/2.
+
+The Notion board export had 67 rows for 43 unique cards, because the CSV was imported three times,
+and the export had lost every property except Name and Epic. Regenerating from the repo rather than
+trying to de-duplicate the board: the repo is canonical for *what a task is*, so a fresh import is
+both correct and faster.
+
+**Action required:**
+- Swara: delete the existing board and import these two files into fresh databases. Do not merge
+  into the current one - it has triplicate cards and no status, assignee or estimate columns
+
+## v2.1.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus `Dockerfile`, `.gcloudignore`, `requirements.txt`
+**Type:** MINOR
+
+**WU-25 is done. The app is live.**
+
+    https://consentinel-web-255860737849.us-central1.run.app
+
+Runs as its own service account, `consentinel-web@`, holding one role: Firestore read/write. No
+secrets, no evidence writes. Cold hit 0.5s, warm 0.3s.
+
+Three things this deploy uncovered that would have cost us tomorrow:
+
+- **`google-cloud-firestore` was missing from `requirements.txt`** on this branch. Vedant had added
+  it on his, so the container would have failed to import on first start. Caught by a dependency
+  check before building, not by the build.
+- **Cloud Run's frontend intercepts `/healthz`** and returns its own 404 before the request reaches
+  the app. Our route was defined and visible in the app's own schema, yet unreachable. Renamed to
+  `/_health`. Worth knowing before anyone configures a startup probe against a path that silently
+  never arrives.
+- **Cloud Build's default service account needed three roles** it did not have on a fresh project:
+  storage.objectViewer, artifactregistry.writer, logging.logWriter. The first deploy failed on
+  reading its own uploaded source.
+
+`.gcloudignore` keeps tests, tools, docs, notion exports and the demo PDF out of the image.
+
+**Action required:**
+- Everyone: the URL above is public and read-only. There are no POST routes yet, so there is nothing
+  to abuse. **The moment an action endpoint is added it needs a token**, or anyone can spend our
+  Gemini and Parallel quota
+- Swara: this is the URL for the submission form
+
 ## v2.0.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `consentinel/store/base.py`, `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `DESIGN.md`
 **Type:** MAJOR - frozen-contract change
@@ -720,6 +1140,39 @@ the web where cloned voices are sold.
 - **Vedant, WU-06:** add known-bad hosts to Parallel's `source_policy.exclude_domains` - cheapest
   defence of all, since those pages never enter the pipeline
 - **Prachit, WU-22:** the findings screen must render both new states without showing page content
+
+## v1.8.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `CLAUDE.md` (status), plus new code under `web/`
+**Type:** MINOR
+
+**WU-21 and WU-22 are done. There is something to look at. 62 tests passing.**
+
+Three server-rendered pages reading live data out of Firestore:
+
+- **Registry** - who we protect and what each studio may do, with the actual contract sentence and
+  its page number shown underneath.
+- **Found on the web** - the sweep results, ordered so breaches come first. Alphabetical order put
+  "unclear" at the top, which buried the thing the page exists to show.
+- **Our own footage** - the inward check, with a banner counting what cannot ship.
+
+Three decisions worth knowing:
+
+- **Raw values never reach the screen.** "unauthorized" is shown as "Not allowed", "unverified" as
+  "Unchecked". A judge watching a video should not have to translate our database into English.
+  There is a test that fails if a raw value leaks through.
+- **Everything borrowed from someone else's website is escaped.** We display text from pages we do
+  not control; rendering it as markup would let a stranger's page run script inside our app. A test
+  feeds a finding containing a script tag and an image-onerror payload and checks neither can form.
+- **The health check does not touch the database.** If it did, a slow database would look like a
+  dead app and Cloud Run would restart the container for nothing.
+
+The web tests use a fake in-memory store, so they need no network and no Google Cloud login - they
+run in under a second.
+
+**Action required:**
+- Everyone: `pip install -r requirements.txt` again. The web dependencies are now needed
+- Run it locally with `python -m uvicorn web.app:app --port 8080`
+- Prachit: next is WU-25, getting this onto Cloud Run so there is a URL to submit
 
 ## v1.7.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `tools/make_contract_pdf.py`, `fixtures/docs/`, `requirements-dev.txt`
@@ -1109,3 +1562,4 @@ the metrics dashboard. Never cut `adversarial_injection`, the four deployments, 
 - Vedant: **T-07** first — it blocks the agent side *and* the architecture freeze
 - Swara: import `BUILD_PROMPTS.md` and `ARCHITECTURE.md` into the Notion page; hold off on polished design
   until v1.0.0
+

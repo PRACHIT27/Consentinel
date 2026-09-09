@@ -1,0 +1,10 @@
+# The narrowest role that lets a service call a Gemini model.
+#
+# roles/aiplatform.user would work, but it also grants training jobs, endpoint
+# management, datasets, pipelines and more. The web app needs exactly one verb:
+# ask a published model for a prediction. So that is the only permission here.
+title: "Consentinel model invoker"
+description: "Call a published Gemini model. Nothing else on Vertex AI."
+stage: "GA"
+includedPermissions:
+  - aiplatform.endpoints.predict

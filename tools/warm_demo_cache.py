@@ -12,10 +12,11 @@ Why bother: the video shoot cannot die on a rate limit at 1am the night before
 submission. This is roughly an hour of work against that, and `--check` means
 nobody has to *hope* the cache is warm — they can ask.
 
-**It writes to `CACHE_DIR` (default `./.cache`) as JSON.** WU-19 is Prachit's
-Firestore-and-GCS cache; when it lands, pass it in via `HarnessDeps(cache=...)`
-and delete `JsonFileCache` below. The on-disk format is deliberately dull for
-exactly that reason — it is a stopgap, not an interface.
+**Prefers WU-19's `FirestoreCache` and falls back to a local JSON file.** Use
+the Firestore one for anything the deployed app must replay: Cloud Run cannot
+read a JSON file on your laptop, so a locally-warmed cache does nothing for the
+hosted demo. `--cache file` forces the local one, which is still useful for a
+laptop dry-run or when Firestore is unreachable.
 
 What is cached, and by which key:
 
@@ -66,8 +67,32 @@ SEED = ROOT / "fixtures" / "seed.json"
 DEFAULT_CACHE_DIR = ROOT / ".cache"
 
 
+def make_cache(kind: str, cache_dir: Path) -> Any:
+    """WU-19's Firestore cache when we can have it, the local file when we cannot.
+
+    `FirestoreCache` says it satisfies both the `Cache` ABC and the harness's
+    `CachePort`, which is exactly what the ports existed for — it drops into
+    `HarnessDeps(cache=...)` with nothing else changing.
+    """
+    if kind == "file":
+        return JsonFileCache(cache_dir)
+    try:
+        from consentinel.cache.store import FirestoreCache
+
+        cache = FirestoreCache()
+        log.info("using FirestoreCache (project=%s) — the deployed app can "
+                 "replay this", cache.project)
+        return cache
+    except Exception as exc:  # noqa: BLE001 - a laptop without credentials still works
+        if kind == "firestore":
+            raise SystemExit(f"could not open FirestoreCache: {exc}") from exc
+        log.warning("FirestoreCache unavailable (%s); falling back to %s. "
+                    "Note that Cloud Run cannot read this.", exc, cache_dir)
+        return JsonFileCache(cache_dir)
+
+
 class JsonFileCache:
-    """A `CachePort` on disk. Stopgap until WU-19 (see the module docstring).
+    """A `CachePort` on disk, for a laptop dry-run or when Firestore is out.
 
     One file per entry, named by a hash of the key, holding the pickled value
     and the timestamp. Pickle because the cached values are our own dataclasses
@@ -157,8 +182,8 @@ def load_seed(performer_id: str) -> tuple[Performer, list[Consent]]:
     return performer, consents
 
 
-def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool
-         ) -> int:
+def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool,
+         cache_kind: str = "auto") -> int:
     """Run the pipeline live and record everything it asks for."""
     if is_enabled():
         raise SystemExit(
@@ -166,7 +191,7 @@ def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool
             f"Unset {ENV_VAR} and try again.")
 
     performer, consents = load_seed(performer_id)
-    cache = JsonFileCache(cache_dir)
+    cache = make_cache(cache_kind, cache_dir)
     deps = HarnessDeps(cache=cache, audit=MemoryAudit())
 
     # 1 — the plan. The model version costs one call; the deterministic one is
@@ -206,21 +231,20 @@ def warm(performer_id: str, cache_dir: Path, *, use_model_planner: bool
             reconciler.for_extraction(reading.extraction, performer.id,
                                       consents, actor=None)
 
-    log.info("read %d pages, %d refused; cache now holds %d entries "
-             "(%d written this run)", read, refused, cache.entries(),
-             cache.writes)
-    print(f"\nwarm: {cache.entries()} entries in {cache_dir}")
+    log.info("read %d pages, %d refused; %s", read, refused,
+             describe_cache(cache))
+    print(f"\nwarm: {describe_cache(cache)}")
     print(f"now run the demo with {ENV_VAR}=true")
     return 0 if read else 1
 
 
-def check(performer_id: str, cache_dir: Path) -> int:
+def check(performer_id: str, cache_dir: Path, cache_kind: str = "auto") -> int:
     """Replay the pipeline with `DEMO_MODE=true` and report what is missing."""
     import os
 
     os.environ[ENV_VAR] = "true"
     performer, consents = load_seed(performer_id)
-    cache = JsonFileCache(cache_dir)
+    cache = make_cache(cache_kind, cache_dir)
     deps = HarnessDeps(cache=cache, audit=MemoryAudit())
 
     plan = deterministic_plan(performer, consents)
@@ -236,12 +260,21 @@ def check(performer_id: str, cache_dir: Path) -> int:
             readable += 1
 
     ok = not report.degraded and readable == len(report.candidates) and readable
-    print(f"cache: {cache.entries()} entries, {cache.hits} hits, "
-          f"{cache.misses} misses")
+    print("cache: " + describe_cache(cache))
     print(f"sweep: {len(report.findings)} findings, degraded={report.degraded}")
     print(f"pages readable from cache: {readable}/{len(report.candidates)}")
     print("WARM" if ok else "COLD — run without --check to fill it")
     return 0 if ok else 1
+
+
+def describe_cache(cache: Any) -> str:
+    """Both caches keep counters; neither keeps the same ones."""
+    if hasattr(cache, "entries"):
+        return (f"{cache.entries()} entries, {cache.hits} hits, "
+                f"{cache.misses} misses (local file)")
+    stats = getattr(cache, "stats", {})
+    return (f"{stats.get('hits', 0)} hits, {stats.get('misses', 0)} misses, "
+            f"{stats.get('expired', 0)} expired (Firestore)")
 
 
 def main() -> int:
@@ -253,6 +286,11 @@ def main() -> int:
                     help="defaults to CACHE_DIR from .env, else ./.cache")
     ap.add_argument("--check", action="store_true",
                     help="verify the cache instead of filling it")
+    ap.add_argument("--cache", choices=("auto", "firestore", "file"),
+                    default="auto",
+                    help="auto prefers WU-19's FirestoreCache and falls back "
+                         "to a local JSON file. Cloud Run can only replay the "
+                         "Firestore one.")
     ap.add_argument("--model-planner", action="store_true",
                     help="use the Gemini QueryPlanner rather than the "
                          "deterministic plan (one extra model call)")
@@ -270,9 +308,9 @@ def main() -> int:
         os.environ.get("CACHE_DIR", str(DEFAULT_CACHE_DIR)))
 
     if args.check:
-        return check(args.performer, cache_dir)
+        return check(args.performer, cache_dir, args.cache)
     return warm(args.performer, cache_dir,
-                use_model_planner=args.model_planner)
+                use_model_planner=args.model_planner, cache_kind=args.cache)
 
 
 if __name__ == "__main__":

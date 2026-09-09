@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Our own footage — Consentinel{% endblock %}
+
+{% block content %}
+<h1>Our own footage</h1>
+<p class="lead">Before a film ships, someone has to sign that we hold the rights to everything in it.
+   Same registry, same rules &mdash; pointed inward this time.</p>
+
+{% if blockers %}
+  <div class="banner bad">
+    <strong>{{ blockers | length }} clip{{ "s" if blockers | length != 1 }} cannot ship.</strong>
+    Each one is named below with the clause it breaks.
+  </div>
+{% endif %}
+{% if unchecked %}
+  <div class="banner muted">
+    <strong>{{ unchecked | length }} clip{{ "s" if unchecked | length != 1 }} unchecked.</strong>
+    No paperwork on file. Unchecked is not the same as fine &mdash; a person has to look.
+  </div>
+{% endif %}
+
+{% for a in assets %}
+  {% set style, label = a.clearance_state | clearance_style %}
+  <article class="card finding {{ style }}">
+    <div class="finding-head">
+      <span class="pill {{ style }}">{{ label }}</span>
+      {% if a.shot_code %}<span class="pill muted">{{ a.shot_code }}</span>{% endif %}
+      {% if a.detected_modality %}<span class="pill muted">{{ a.detected_modality | ev }}</span>{% endif %}
+      {% if a.synthetic == "yes" %}<span class="pill warn">made with AI</span>{% endif %}
+      {% if a.synthetic == "unknown" %}<span class="pill muted">nobody said</span>{% endif %}
+    </div>
+
+    <p class="url">{{ a.filename }}</p>
+
+    <dl class="facts tight">
+      <dt>Why</dt>
+      <dd>{{ a.reasoning }}</dd>
+
+      <dt>Made by</dt>
+      <dd>{{ a.vendor or "not recorded" }}
+        {% if a.invoice_ref %}<span class="hint">invoice {{ a.invoice_ref }}</span>
+        {% else %}<span class="hint">no invoice on file</span>{% endif %}
+      </dd>
+
+      {% if a.matched_consent_id and consents.get(a.matched_consent_id) %}
+        {% set c = consents[a.matched_consent_id] %}
+        <dt>Covered by</dt>
+        <dd>{{ c.licensee }} &mdash; {{ c.permitted_uses | map("ev") | join(", ") | replace("_", " ") }}
+            in {{ c.territories | join(", ") }}</dd>
+      {% elif a.clearance_state | ev == "blocked" %}
+        <dt>Covered by</dt>
+        <dd class="bad-text">nothing in the registry permits this</dd>
+      {% endif %}
+    </dl>
+  </article>
+{% else %}
+  <p class="empty">No footage submitted for this production.</p>
+{% endfor %}
+
+<p class="note">Production <code>{{ production }}</code>.
+   We are not detecting AI here &mdash; we are checking whether permission exists.
+   Anything without paperwork stays unchecked rather than being assumed fine.</p>
+{% endblock %}

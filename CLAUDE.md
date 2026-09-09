@@ -199,6 +199,33 @@ Claude Code sessions read files and cannot see Notion.
 
 ---
 
+## Agent layout — follow this for every agent
+
+One folder per agent, three files, plus anything genuinely shared in
+`agents/common/`:
+
+```
+consentinel/agents/common/gemini.py        the only place we call a model
+consentinel/agents/<agent>/
+    __init__.py       re-exports; import from the package, not the modules
+    agent.py          the steps, and the HarnessPolicy
+    guardrail.py      what can reject an answer
+    instructions.py   the prompt, the response schema, PROMPT_VERSION
+```
+
+Why split rather than one file:
+
+- **Prompts change constantly.** Keeping them alone means a wording tweak is a
+  one-file diff, and `PROMPT_VERSION` sits next to the words it versions — bump
+  it when they change, or the cache serves answers from a prompt you deleted.
+- **`guardrail.py` is the security surface.** Someone asking "what stops it
+  inventing a citation?" should find one short file, not a function three
+  hundred lines into the agent.
+- Every model call goes through `agents/common/gemini.py`, so the
+  untrusted-content boundary is drawn once instead of six times.
+
+`consent_ingest` is the worked example. Copy its shape.
+
 ## Conventions
 
 - Type hints everywhere; dataclasses for records
@@ -262,7 +289,7 @@ twice daily. **Read it before you start, update it before you finish.**
       architecture diagrams, backlog
 - [x] Google Cloud hackathon credits obtained
 - [x] WU-01 Firestore store, WU-02 seed loader — *Prachit* — real registry seeded
-- [ ] WU-18 audit helper, WU-19 cache — *Prachit* (plug into the harness ports)
+- [x] WU-18 audit helper, WU-19 cache (`consentinel/cache/`), WU-30 observability — *Prachit*
 - [x] `parallel_search` via official `parallel-web` SDK — *Vedant* (WU-05, 23 tests)
 - [x] `QueryPlanner` — *Vedant* (WU-06, 31 tests; 5 locales, 5 languages, deterministic fallback)
 - [x] `TextSweep` — *Vedant* (WU-07, 24 tests; dedupe on `url_hash`, 25-candidate cap)
@@ -273,17 +300,25 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] Reliability policy + visibly-degraded sweeps — *Vedant* (WU-14, 39 tests)
 - [x] `DEMO_MODE` across every client + warm-cache script — *Vedant* (WU-20, 9 tests)
 - [x] `adversarial_injection` + `verdict_matrix` evalsets, running in CI — *Vedant* (WU-31)
-- [ ] Findings UI + decision-trail view — *Prachit*
-- [ ] `ConsentIngest` (contract PDF → permission grant) — *Prachit*
+- [x] Findings UI + decision-trail view — *Prachit* (WU-21/WU-22/WU-23, the three screens)
+- [x] `ConsentIngest` (contract PDF → permission grant) — *Prachit* (WU-03)
 - [x] `DossierWriter` + snapshot capture — *Vedant* (WU-16 + WU-15's capture half, 35 tests;
       grounded drafts, no send path anywhere). **`consentinel/evidence/store.py` is still
       Prachit's half of WU-15** — a stopgap `LocalSnapshotStore` lives in `agents/snapshot.py`
       until it lands
-- [ ] `ClearancePipeline`, slim — *Prachit*
-- [ ] WU-24 four Agent Runtime deployments — *Vedant*
-- [ ] Cloud Run deploy, cold-start tested — *Prachit*
-- [ ] `ImageSweep` (only if ahead of schedule) — *Vedant*
-- [ ] Demo video, Devpost writeup, runtime-evidence screenshots — *both*
+- [x] Cloud Run deploy + IAM — *Prachit* (WU-25, WU-34: six service accounts, three buckets)
+- [ ] `ClearancePipeline`, slim — *Prachit* (WU-17, P1)
+- [ ] `consentinel/evidence/store.py` — *Prachit* (WU-15's store half; my capture half is done)
+- [ ] **WU-24 four Agent Runtime deployments** — *Vedant* — **P0, needs GCP credentials**
+- [ ] **WU-37 runtime evidence pack** — *Vedant* — **P0, needs the Parallel key first**
+- [ ] **WU-36 demo video, Devpost writeup** — *Swara* — **P0**
+- [ ] `ImageSweep` (WU-32), AudioSweep/VideoSweep (WU-26/27), `fetch_media` (WU-28),
+      MediaTriage (WU-29), scheduled sweeps (WU-33) — *Vedant* — all P1/P2, all in the cut order
+
+**Blocking everything on the submission side:** the Parallel API key is still empty in `.env`, so
+nothing has called the judged partner integration at runtime. 457 tests prove the pipeline is
+correct; none prove it has run. `COMPETITION.md` is explicit that naming Parallel in the README does
+not satisfy the requirement.
 
 ## Open questions
 
