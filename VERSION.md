@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.3`**
+**Doc set version: `v3.2.4`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,37 @@ commit.
 # Log
 
 Newest first.
+
+## v3.2.4 - 2026-09-09 - Prachit (with Claude)
+**Files:** `README.md`, `COMPETITION.md` §11, `CLAUDE.md` Status
+**Type:** PATCH - records a fact; nothing to build against changed
+
+**The hosted URL is now written down.** It is the first item CLAUDE.md lists as blocking the
+submission, and until now it existed only inside a v2.1.0 log entry, which nobody preparing the
+submission would think to read:
+
+    https://consentinel-web-255860737849.us-central1.run.app
+
+Cloud Run answers on two addresses for this service - the project-number one above, which
+`gcloud run deploy` prints, and `https://consentinel-web-ayr2oo7nzq-uc.a.run.app`, which
+`gcloud run services describe` reports as `status.url`. Both were tested on all four screens after
+the 9 Sep deploy and both return 200. Use the project-number form in the submission, so the repo and
+the Devpost entry agree.
+
+**Two claims about Agent Engine removed.** `COMPETITION.md` §5 said we "additionally deploy the
+agents to Agent Engine", and the README said untrusted content runs "in an isolated Agent Runtime
+deployment". WU-24 is cut, so neither is true. Both now describe what actually runs: ADK agents,
+Gemini through `google-genai` on Vertex AI, Cloud Run, and triage isolated by the harness policy
+holding no tools, no secrets and no write access - which is real, and is the part that matters. §5
+now says in as many words not to claim Agent Engine in the writeup or the video.
+
+Also corrected the README's own first line. It claimed the project was built on **Agent Builder**,
+and nothing is deployed to Agent Runtime — WU-24 is cut (see CLAUDE.md). It now names what we
+actually run: Gemini on Vertex AI, Google Cloud, and Parallel Search. Worth being careful here: a
+judge checking a claim they can't find is worse than a shorter list.
+
+The UI redesign that went out on the same deploy is not a governed change and has no entry — see the
+`ui/console-from-mockup` PR.
 
 ## v3.2.3 - 2026-09-09 - Vedant (with Claude)
 **Files:** `CLAUDE.md` Status

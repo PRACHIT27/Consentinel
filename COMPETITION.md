@@ -76,9 +76,13 @@ locale and result count, and that log is shown on screen in the demo video.
 
 > Projects must run on *"at least one of the following platforms: web, Android, or iOS"*
 
-No Google-exclusive hosting is mandated. **Cloud Run satisfies this.** We additionally deploy the
-agents to **Agent Engine** so that "powered by Gemini and Google Cloud Agent Builder" is true in
-code, not just in prose — see `COMPETITION.md §12`.
+No Google-exclusive hosting is mandated. **Cloud Run satisfies this**, and Cloud Run is what we
+run: https://consentinel-web-255860737849.us-central1.run.app
+
+**Do not claim Agent Engine / Agent Runtime in the writeup or the video.** WU-24 is cut and nothing
+is deployed there. What is true, and enough: the agents are built with ADK, every model call goes to
+Gemini through `google-genai` on Vertex AI, and the whole pipeline runs on Cloud Run. Claiming a
+deployment a judge can ask about and we cannot show is worse than a shorter list.
 
 ## 6. Submission checklist
 
@@ -127,7 +131,7 @@ Five separate podiums, so track choice materially affects odds.
 |---|---|
 | Parallel only mentioned, not called | Official SDK imported and called in `tools/parallel_search.py`; call log on camera |
 | A non-Google model in the pipeline | Nothing but Gemini via accepted SDKs. Check `requirements.txt` before submitting |
-| Hosted URL broken on submission day | Deploy 8 Sep, not 9 Sep. Test from a cold browser with no local server running |
+| Hosted URL broken on submission day | **Live: https://consentinel-web-255860737849.us-central1.run.app** — Cloud Run, `us-central1`, public, no login. Re-tested from a cold browser after the 9 Sep UI deploy |
 | Missing or incomplete license | `LICENSE` (MIT) committed at the repo root |
 | Video over 3 minutes, or private | Script it, time it, set visibility to public — not unlisted-only if the form requires public |
 | Secret committed to the public repo | `.env` gitignored; Secret Manager in deploy; rotate on any exposure |

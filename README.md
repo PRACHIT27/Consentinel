@@ -4,8 +4,14 @@
 face or voice without consent, and stops a studio from accidentally shipping something it never had
 the rights to.
 
-Built for the Agentic Cinema hackathon — Gemini and Google Cloud Agent Builder, on the **Parallel**
-track.
+Built for the Agentic Cinema hackathon — Gemini on Vertex AI, Google Cloud, and Parallel Search, on
+the **Parallel** track.
+
+**Try it:** https://consentinel-web-255860737849.us-central1.run.app
+
+Four screens, no login. The registry holds the permission slips; the sweep shows what was found on
+the web and whether it is allowed; the clearance screen answers the same question about our own
+footage. Every name and result is invented — see [Demo data](#demo-data).
 
 ---
 
@@ -83,9 +89,9 @@ Stated plainly, because a clean boundary is worth more than an overclaim a judge
 
 A consent registry in Firestore is the spine. Two ADK pipelines read from it in opposite directions
 and share one deterministic rule engine. Discovery fans out across text, audio, video and image
-sweeps. Everything that reads untrusted content — page triage, media triage — runs in an isolated
-Agent Runtime deployment holding **no tools, no secrets and no write access**, and the reconciler
-that decides verdicts never receives page text at all. So a page that tries to instruct our agent
+sweeps. Everything that reads untrusted content — page triage, media triage — runs with **no tools,
+no secrets and no write access**: the harness policy is the boundary, so a triage step cannot fetch,
+store or call anything. The reconciler that decides verdicts never receives page text at all. So a page that tries to instruct our agent
 cannot reach a decision. Model Armor screens injection and PII on top of that. Evidence snapshots
 live in a bucket where no principal in the system holds delete permission.
 

@@ -307,6 +307,12 @@ twice daily. **Read it before you start, update it before you finish.**
 - [x] `DEMO_MODE` across every client + warm-cache script — *Vedant* (WU-20, 9 tests)
 - [x] `adversarial_injection` + `verdict_matrix` evalsets, running in CI — *Vedant* (WU-31)
 - [x] Findings UI + decision-trail view — *Prachit* (WU-21/WU-22/WU-23, the three screens)
+- [x] **The console UI, matching the agreed design** — *Prachit* (`ui/console-from-mockup`).
+      One stylesheet, `web/static/console.css`, taken from the mockup the Figma board was built
+      from. `style.css` and `theme.css` are gone — do not add a second stylesheet. There is now a
+      front page at `/` and the registry moved to `/registry`; rows open a detail panel, which
+      `web/static/console.js` fills **by cloning server-rendered nodes, never from a string**,
+      because findings carry text from pages we do not control
 - [x] `ConsentIngest` (contract PDF → permission grant) — *Prachit* (WU-03)
 - [x] `DossierWriter` + snapshot capture — *Vedant* (WU-16 + WU-15's capture half, 35 tests;
       grounded drafts, no send path anywhere). **`consentinel/evidence/store.py` is still
@@ -330,11 +336,14 @@ real `client.search(...)` calls across 5 locales, and the log is committed at
 
 **Now blocking the submission, in this order:**
 
-1. **The hosted URL is not recorded anywhere** — no `*.run.app` in the README, `COMPETITION.md` or
-   `infra/`. WU-25/WU-34 are ticked but nothing in the repo proves the deploy is reachable, and
-   §11 says to test it from a cold browser with no local server running. *Prachit.*
-2. **The video is not shot.** *Swara.* Longest pole.
-3. **The Devpost form**, with the Parallel track selected.
+1. **The video is not shot.** *Swara.* Longest pole.
+2. **The Devpost form**, with the Parallel track selected.
+
+**The hosted URL is recorded and live:** https://consentinel-web-255860737849.us-central1.run.app —
+it is in the README's first screenful and in `COMPETITION.md` §11. Cloud Run, `us-central1`, public,
+no login. Revision `00008`, the console UI, all four screens tested from a cold browser. Cloud Run
+also answers on `https://consentinel-web-ayr2oo7nzq-uc.a.run.app` (what `describe` reports as
+`status.url`); both work, and the submission uses the project-number form above.
 
 **Cut:** WU-24, the four Agent Runtime deployments. It has no scaffolding at all, and
 `COMPETITION.md` §5 is explicit that Cloud Run satisfies the platform requirement — Agent Engine is
