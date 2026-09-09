@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v3.2.4`**
+**Doc set version: `v3.2.5`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -106,6 +106,27 @@ commit.
 # Log
 
 Newest first.
+
+## v3.2.5 - 2026-09-09 - Prachit (with Claude)
+**Files:** `CLAUDE.md` Status
+**Type:** MINOR - a work unit closed, and one instruction for whoever touches it next
+
+**WU-17 is done.** `consentinel/agents/clearance/` and `POST /clearance/check`. Epic 6 closes.
+
+The one thing to know if you work on it: **it calls the same reconciler as the sweep.** Do not add a
+second rule engine for the inward direction. That equivalence - a studio gets the same answer about
+its own footage as it would get about a stranger's website - is the product's claim, and two engines
+would drift apart in a week.
+
+The model's role is narrow on purpose. It reads the file and can only ever *withhold* clearance, by
+disagreeing with the delivery note or finding nobody in the file. Clearance comes from a contract
+record it never sees. So no prompt change can turn a blocked clip into a cleared one.
+
+Not built, and the Status entry says so: Content Credentials parsing, invoice/SOW parsing, proxy
+transcoding, manifest rollup. The submit form takes declared facts instead - the studio knows who is
+in its own shot.
+
+Also noted in Status: both upload paths work on the hosted URL, and both need the `?k=` key.
 
 ## v3.2.4 - 2026-09-09 - Prachit (with Claude)
 **Files:** `README.md`, `COMPETITION.md` §11, `CLAUDE.md` Status

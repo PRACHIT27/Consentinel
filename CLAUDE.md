@@ -319,7 +319,14 @@ twice daily. **Read it before you start, update it before you finish.**
       Prachit's half of WU-15** — a stopgap `LocalSnapshotStore` lives in `agents/snapshot.py`
       until it lands
 - [x] Cloud Run deploy + IAM — *Prachit* (WU-25, WU-34: six service accounts, three buckets)
-- [ ] `ClearancePipeline`, slim — *Prachit* (WU-17, P1)
+- [x] **`ClearancePipeline` — *Prachit* (WU-17).** `consentinel/agents/clearance/`, live in the app
+      at `POST /clearance/check`. It calls **the same reconciler as the sweep** — do not write a
+      second rule engine for the inward direction, that equivalence is the product's claim. Gemini
+      reads the file and can only ever *withhold* clearance (by disagreeing with the delivery note
+      or finding no person); clearance itself comes from a contract record the model never sees.
+      Verified live: voice/US cleared, voice/BR blocked, face/US blocked. **Not built:** Content
+      Credentials parsing, invoice/SOW parsing, proxy transcode, manifest rollup — the form takes
+      declared facts instead
 - [ ] `consentinel/evidence/store.py` — *Prachit* (WU-15's store half; my capture half is done)
 - [ ] **WU-24 four Agent Runtime deployments** — *Vedant* — **P0, needs GCP credentials**
 - [x] **WU-37 runtime evidence pack** — *Vedant* — `evidence/published/` is in the repo: 8 live
@@ -338,6 +345,11 @@ real `client.search(...)` calls across 5 locales, and the log is committed at
 
 1. **The video is not shot.** *Swara.* Longest pole.
 2. **The Devpost form**, with the Parallel track selected.
+
+**Both upload paths work on the hosted URL**, which is what a demo needs: a contract PDF at
+`/consents/new` and a clip at `/clearance`. Both spend a Gemini call, so both need `?k=<token>`
+from Secret Manager (`consentinel-action-token`) — reads stay open. Without the key the forms are
+hidden rather than shown and refused.
 
 **The hosted URL is recorded and live:** https://consentinel-web-255860737849.us-central1.run.app —
 it is in the README's first screenful and in `COMPETITION.md` §11. Cloud Run, `us-central1`, public,
