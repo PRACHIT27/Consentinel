@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v1.8.0`**
+**Doc set version: `v2.0.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,44 @@ commit.
 
 Newest first.
 
+## v2.0.0 - 2026-09-08 - Prachit (with Claude)
+**Files:** `consentinel/store/base.py`, `consentinel/tools/contracts.py`, `consentinel/tools/__init__.py`, `DESIGN.md`
+**Type:** MAJOR - frozen-contract change
+
+**Vedant: read this before finishing WU-08.** The design defended against pages that try to
+*manipulate* the agent. It did not defend against pages that are simply dangerous to open, or that
+contain material we must not keep a copy of. Both are real for a system that searches the corners of
+the web where cloned voices are sold.
+
+**Contract changes**
+- New tool `web_risk_check(url) -> UrlRisk` in `tools/contracts.py`. Called **before** `fetch_page`,
+  never after. Uses Google's Web Risk service, which already keeps lists of malware and phishing
+  sites, so we are not the ones finding out. If it says unsafe: do not open the page, and if the
+  check itself fails, treat the address as unsafe and skip it.
+- Two new `FindingStatus` values. `BLOCKED_UNSAFE` for an address we refused to open;
+  `ESCALATED_UNLAWFUL` for a page carrying material we must not store.
+- `fetch_page` docstring now states the order: web risk, then network guards, then Model Armor.
+  Three different problems, and none of them substitutes for the others.
+
+**Design addition - DESIGN.md Part III**
+- Web Risk API enabled on the project.
+- Model Armor settings stay asymmetric on purpose: **flag but do not block** on the way in, because
+  a page trying to manipulate us is frequently the very page that is infringing and blocking it
+  would suppress the finding. **Block** on the way out, because a takedown letter must never carry
+  personal data or a link to a malware site.
+- **The unlawful-material rule.** When safety filters flag a page in that category, nothing is
+  snapshotted and nothing is rendered. We keep the address, a hash, the classification and the time,
+  set `ESCALATED_UNLAWFUL`, and tell a person. This is the one place the product deliberately keeps
+  *less* evidence, because here preserving is the harm.
+- A refused page keeps `verdict = AMBIGUOUS`. Refusing to look is not the same as deciding the use
+  was allowed.
+
+**Action required:**
+- **Vedant, WU-08:** call `web_risk_check` first. Do not fetch on an unsafe result and do not fetch
+  when the check errors
+- **Vedant, WU-06:** add known-bad hosts to Parallel's `source_policy.exclude_domains` - cheapest
+  defence of all, since those pages never enter the pipeline
+- **Prachit, WU-22:** the findings screen must render both new states without showing page content
 ## v1.8.0 - 2026-09-08 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus new code under `web/`
 **Type:** MINOR
