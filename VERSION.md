@@ -7,7 +7,7 @@ them gets an entry here, in the same commit. A `pre-commit` hook enforces it (se
 Why: three people are working with separate Claude Code sessions that cannot see each other. This
 file is how a session finds out that the contract moved since it last looked.
 
-**Doc set version: `v2.4.0`**
+**Doc set version: `v2.5.0`**
 **Architecture status: 🔒 FROZEN** (7 Sep 2026) — safe to design against. Structural changes from
 here need all three to agree and a MAJOR bump.
 
@@ -107,6 +107,41 @@ commit.
 
 Newest first.
 
+## v2.5.0 - 2026-09-09 - Prachit (with Claude)
+**Files:** `DESIGN.md`, plus `infra/iam/model_invoker_role.yaml` and the deployed service
+**Type:** MINOR
+
+**Reading a contract now works on the live URL.** 9.3 seconds end to end: performer, licensee,
+US and CA, the 2026-2028 term, 8 quotes across 6 pages, `voice_synth` and `archival_reuse` ticked,
+`face_replace` correctly left unticked.
+
+**Action gating is live.** `CONSENTINEL_ACTION_TOKEN` is mounted from Secret Manager
+(`consentinel-action-token`), readable only by `consentinel-web@`. Verified on the deployed service:
+the three read screens return 200 with no key; `/consents/new` and `/consents/extract` return 403
+with no key and 403 with a wrong key.
+
+**Two things that are honestly not as designed, and should not be claimed otherwise.**
+
+1. **The web app now holds `roles/aiplatform.user`.** `DESIGN.md` Part II section 3 says Gemini
+   calls belong to `cn-ingest` and the web app should hold no model permission at all. That is still
+   the right design, but Agent Runtime does not exist yet, so `extract_consent` runs in-process
+   inside the Cloud Run container and the container therefore needs to call Gemini. **Do not claim
+   in the demo that the web app cannot reach a model — right now it can.** The fix is WU-24, not an
+   IAM change.
+2. **A single-permission custom role did not work on its own.** `infra/iam/model_invoker_role.yaml`
+   grants only `aiplatform.endpoints.predict`, which should be enough to call a published model. It
+   was still refused after binding and after cycling the instances, so `roles/aiplatform.user` was
+   added on top. Unresolved whether that was IAM propagation, a cached token, or the custom role
+   genuinely being insufficient for publisher models. The custom role is still bound and the file is
+   committed - worth narrowing back to it after the deadline rather than now.
+
+**The failure was well-behaved, which is worth noting.** The missing permission surfaced as a 422
+with a readable message on the upload screen, not a crash or a blank page, and nothing was written.
+That is the fail-safe path in DESIGN.md Part I section 0 doing its job on a real error.
+
+**Action required:**
+- Prachit: WU-34 should narrow this back once Agent Runtime exists. Until then the IAM story in the
+  demo has one honest caveat
 ## v2.4.0 - 2026-09-09 - Prachit (with Claude)
 **Files:** `CLAUDE.md` (status), plus `web/` upload and confirm screens
 **Type:** MINOR
