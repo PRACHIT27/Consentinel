@@ -178,8 +178,9 @@ call, so add `?k=<ACTION KEY>` to the URL.
 4. **Clearance Check** → `voice-clip.wav` as *voice* for `US` clears; the same file for `BR` is
    blocked. `face-still.jpg` as *face* is blocked.
 
-Also: sweep `/demo/listing-injected`, a page that instructs our agent to call the listing
-authorised. The verdict does not move.
+Also: `/demo/listing-injected` is the same listing with a paragraph instructing our agent to call
+it authorised. The page-reading agent holds no tools and only fills a schema, and the
+`adversarial_injection` eval set runs pages like it in CI. The verdict does not move.
 
 Runtime evidence: `evidence/published/` (Parallel calls with `search_id`s) and
 `infra/agent_engine/smoke_output.json` (each Agent Engine runtime answering a live call).
